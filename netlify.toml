@@ -1,0 +1,17 @@
+[build]
+  publish = "dist"
+  functions = "netlify/functions"
+  command = "npm run build"
+
+[[redirects]]
+  from = "/api/extract-letter"
+  to = "/.netlify/functions/extract-letter"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"

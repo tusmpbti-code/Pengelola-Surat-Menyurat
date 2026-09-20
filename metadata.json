@@ -1,0 +1,6 @@
+{
+  "name": "SIPAS BTI",
+  "description": "Sistem Pengarsipan Surat SMP Bhinneka Tunggal Ika",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
