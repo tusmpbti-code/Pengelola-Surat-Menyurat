@@ -48,16 +48,65 @@ export function fileToBase64(file: File): Promise<string> {
 export function humanizeAIError(err: unknown): string {
   if (!err) return 'Dokumen belum dapat diproses.';
   const raw = typeof err === 'string' ? err : (err as any)?.message || String(err);
-  if (raw.includes('503') || raw.includes('high demand') || raw.includes('UNAVAILABLE')) {
-    return 'Layanan Google Gemini sedang mengalami lonjakan antrean sementara (High Demand / Kode 503). Silakan klik "Coba Lagi" dalam beberapa detik atau gunakan "Input Manual".';
+  
+  if (
+    raw.includes('503') ||
+    raw.includes('high demand') ||
+    raw.includes('UNAVAILABLE') ||
+    raw.includes('overloaded')
+  ) {
+    return 'Layanan Google Gemini sedang mengalami antrean server sementara (High Demand / Kode 503). Silakan klik tombol "Coba Lagi" dalam beberapa detik atau gunakan "Input Manual".';
   }
+  
   if (raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED')) {
-    return 'Batas kuota permintaan AI tercapai sementara (Kode 429). Silakan tunggu sebentar dan klik "Coba Lagi".';
+    return 'Batas kuota permintaan AI tercapai sementara (Kode 429). Silakan tunggu sebentar dan klik "Coba Lagi", atau lanjutkan dengan "Input Manual".';
   }
-  if (raw.includes('API_KEY') || raw.includes('apiKey')) {
-    return 'Konfigurasi GEMINI_API_KEY server belum lengkap atau belum diatur di Secrets.';
+  
+  if (
+    raw.includes('API_KEY') ||
+    raw.includes('apiKey') ||
+    raw.includes('API_KEY_INVALID') ||
+    raw.includes('API key not valid')
+  ) {
+    return 'Kunci GEMINI_API_KEY server belum dikonfigurasi di Secrets. Silakan tambahkan GEMINI_API_KEY di menu Settings > Secrets AI Studio, atau gunakan tombol "Input Manual" di bawah untuk langsung mengisi data surat.';
   }
+
+  if (
+    raw.includes('INVALID_ARGUMENT') ||
+    raw.includes('Request contains an invalid argument')
+  ) {
+    return 'Format dokumen atau foto tidak dapat diproses oleh AI. Pastikan berkas dokumen tajam dan jelas (PDF, Word DOCX, atau Foto JPG/PNG). Silakan gunakan "Input Manual" untuk melanjutkan.';
+  }
+
+  if (raw.includes('404') || raw.includes('Failed to fetch') || raw.includes('NetworkError')) {
+    return 'Koneksi ke endpoint pemrosesan server terputus. Silakan klik "Coba Lagi" atau gunakan "Input Manual".';
+  }
+
   return raw;
+}
+
+export async function checkAIServerStatus(): Promise<{
+  configured: boolean;
+  message: string;
+  activeModel?: string;
+}> {
+  try {
+    const resp = await fetch('/api/ai-status');
+    if (resp.ok) {
+      const data = await resp.json();
+      return {
+        configured: Boolean(data.configured),
+        message: data.message || 'Status AI diperoleh.',
+        activeModel: data.activeModel || 'gemini-3.8-flash',
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return {
+    configured: false,
+    message: 'Tidak dapat menghubungi endpoint status AI.',
+  };
 }
 
 /**

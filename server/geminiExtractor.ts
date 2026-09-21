@@ -1,6 +1,24 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import * as mammoth from 'mammoth';
-import { LetterAIExtraction } from '../src/types';
+
+export interface LetterAIExtraction {
+  jenis_surat: 'INCOMING' | 'OUTGOING' | null;
+  nomor_surat: string | null;
+  tanggal_surat: string | null;
+  tanggal_diterima: string | null;
+  asal_surat: string | null;
+  tujuan_surat: string | null;
+  perihal: string | null;
+  sifat_surat: string | null;
+  lampiran: string | null;
+  penandatangan: string | null;
+  jabatan_penandatangan: string | null;
+  ringkasan: string | null;
+  kata_kunci: string[];
+  klasifikasi: string | null;
+  tanggal_kegiatan: string | null;
+  tempat_kegiatan: string | null;
+}
 
 export interface ExtractionRequest {
   fileBase64: string; // Base64 string of file content (without data URL prefix or with it stripped)
@@ -46,6 +64,20 @@ const CANDIDATE_MODELS = [
   'gemini-3.1-flash-lite',
 ];
 
+export function checkGeminiConfigured(): { configured: boolean; message: string } {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.length < 10) {
+    return {
+      configured: false,
+      message: 'GEMINI_API_KEY belum dikonfigurasi di Secrets Google AI Studio.',
+    };
+  }
+  return {
+    configured: true,
+    message: 'Engine Google Gemini siap digunakan.',
+  };
+}
+
 export function formatGeminiError(error: any): string {
   if (!error) return 'Dokumen belum dapat diproses.';
   const rawMsg = error.message || String(error);
@@ -53,43 +85,55 @@ export function formatGeminiError(error: any): string {
   if (
     rawMsg.includes('503') ||
     rawMsg.includes('high demand') ||
-    rawMsg.includes('UNAVAILABLE')
+    rawMsg.includes('UNAVAILABLE') ||
+    rawMsg.includes('overloaded')
   ) {
-    return 'Layanan Google Gemini sedang mengalami lonjakan antrean sementara (High Demand / Kode 503). Silakan klik tombol "Coba Lagi" dalam beberapa detik, atau gunakan "Input Manual".';
+    return 'Layanan Google Gemini sedang mengalami antrean server sementara (High Demand / Kode 503). Silakan klik "Coba Lagi" dalam beberapa detik, atau gunakan tombol "Input Manual".';
   }
 
   if (rawMsg.includes('429') || rawMsg.includes('RESOURCE_EXHAUSTED')) {
-    return 'Batas kuota permintaan AI tercapai sementara (Kode 429). Silakan tunggu sebentar dan klik "Coba Lagi".';
+    return 'Batas kuota harian/menit AI tercapai sementara (Kode 429). Silakan tunggu sebentar dan klik "Coba Lagi", atau lanjutkan dengan "Input Manual".';
   }
 
-  if (rawMsg.includes('GEMINI_API_KEY') || rawMsg.includes('apiKey')) {
-    return 'GEMINI_API_KEY belum dikonfigurasi di environment server. Pastikan variabel GEMINI_API_KEY telah diatur di Settings > Secrets atau file .env.';
+  if (
+    rawMsg.includes('GEMINI_API_KEY') ||
+    rawMsg.includes('apiKey') ||
+    rawMsg.includes('API_KEY_INVALID') ||
+    rawMsg.includes('API key not valid')
+  ) {
+    return 'Kunci GEMINI_API_KEY server belum diatur atau belum valid di panel Secrets. Silakan tambahkan GEMINI_API_KEY di menu Settings > Secrets AI Studio, atau gunakan tombol "Input Manual" untuk langsung mengisi formulir surat.';
+  }
+
+  if (
+    rawMsg.includes('INVALID_ARGUMENT') ||
+    rawMsg.includes('Request contains an invalid argument')
+  ) {
+    return 'Format dokumen atau isi berkas tidak dapat diproses oleh AI. Pastikan berkas berupa gambar yang jelas (JPG/PNG), PDF yang valid, atau dokumen Word (.docx). Anda dapat menggunakan "Input Manual" untuk melanjutkan.';
+  }
+
+  if (rawMsg.includes('Payload Too Large') || rawMsg.includes('request entity too large')) {
+    return 'Ukuran berkas terlalu besar. Gunakan berkas di bawah 10 MB atau gunakan tombol "Input Manual".';
   }
 
   return rawMsg;
 }
 
-let geminiClient: GoogleGenAI | null = null;
-
 function getGeminiClient(): GoogleGenAI {
-  if (!geminiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        'GEMINI_API_KEY belum dikonfigurasi di environment server. Pastikan variabel GEMINI_API_KEY telah diatur di Settings > Secrets atau file .env.'
-      );
-    }
-
-    geminiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.length < 10) {
+    throw new Error(
+      'GEMINI_API_KEY belum dikonfigurasi di environment server atau masih menggunakan nilai placeholder. Silakan buka menu Settings > Secrets di Google AI Studio untuk memasukkan GEMINI_API_KEY Anda.'
+    );
   }
-  return geminiClient;
+
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
+    },
+  });
 }
 
 export async function extractLetterFromDocument(
@@ -103,15 +147,29 @@ export async function extractLetterFromDocument(
     const ai = getGeminiClient();
 
     // Clean base64 string if data URL prefix exists
-    let cleanBase64 = req.fileBase64;
+    let cleanBase64 = req.fileBase64 || '';
     if (cleanBase64.includes('base64,')) {
       cleanBase64 = cleanBase64.split('base64,')[1];
     }
     cleanBase64 = cleanBase64.trim();
 
+    if (!cleanBase64) {
+      throw new Error('Berkas dokumen kosong atau tidak terbaca dengan benar.');
+    }
+
     // Normalize MIME type and file format
-    let mimeType = req.mimeType.toLowerCase();
+    let mimeType = (req.mimeType || '').toLowerCase().trim();
     const fileNameLower = (req.fileName || '').toLowerCase();
+
+    // Auto-detect MIME type from Base64 magic bytes if generic or missing
+    if (!mimeType || mimeType === 'application/octet-stream') {
+      if (cleanBase64.startsWith('JVBERi0')) mimeType = 'application/pdf';
+      else if (cleanBase64.startsWith('/9j/')) mimeType = 'image/jpeg';
+      else if (cleanBase64.startsWith('iVBORw')) mimeType = 'image/png';
+      else if (cleanBase64.startsWith('UklGR')) mimeType = 'image/webp';
+      else if (cleanBase64.startsWith('UEsDB')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+
     const isDocx =
       mimeType.includes('wordprocessingml') ||
       mimeType.includes('vnd.openxmlformats') ||
