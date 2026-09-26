@@ -46,6 +46,7 @@ import {
   Hash,
   ArrowRight,
 } from 'lucide-react';
+import { sanitizeDate, sanitizeNullableString } from '../utils/stringUtils';
 
 interface AIVerificationModalProps {
   isOpen: boolean;
@@ -180,25 +181,37 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
 
       const d = res.data;
 
-      // Populate form fields
+      // Populate form fields with sanitization
       if (d.jenis_surat) setLetterType(d.jenis_surat);
-      if (d.nomor_surat) setNomorSurat(d.nomor_surat);
-      if (d.tanggal_surat) setTanggalSurat(d.tanggal_surat);
-      if (d.tanggal_diterima) setTanggalDiterima(d.tanggal_diterima);
+      if (d.nomor_surat) setNomorSurat(sanitizeNullableString(d.nomor_surat) || '');
+      const validTanggalSurat = sanitizeDate(d.tanggal_surat);
+      if (validTanggalSurat) setTanggalSurat(validTanggalSurat);
+
+      const validTanggalDiterima = sanitizeDate(d.tanggal_diterima);
+      if (validTanggalDiterima) setTanggalDiterima(validTanggalDiterima);
       else if (d.jenis_surat === 'INCOMING' || letterType === 'INCOMING') {
         setTanggalDiterima(new Date().toISOString().split('T')[0]);
+      } else {
+        setTanggalDiterima('');
       }
-      if (d.asal_surat) setAsalSurat(d.asal_surat);
-      if (d.tujuan_surat) setTujuanSurat(d.tujuan_surat);
-      if (d.perihal) setPerihal(d.perihal);
-      if (d.sifat_surat) setSifatSurat(d.sifat_surat);
-      if (d.lampiran) setLampiran(d.lampiran);
-      if (d.penandatangan) setPenandatangan(d.penandatangan);
-      if (d.jabatan_penandatangan) setJabatanPenandatangan(d.jabatan_penandatangan);
-      if (d.ringkasan) setRingkasan(d.ringkasan);
-      if (Array.isArray(d.kata_kunci)) setKataKunci(d.kata_kunci);
-      if (d.tanggal_kegiatan) setTanggalKegiatan(d.tanggal_kegiatan);
-      if (d.tempat_kegiatan) setTempatKegiatan(d.tempat_kegiatan);
+
+      if (d.asal_surat) setAsalSurat(sanitizeNullableString(d.asal_surat) || '');
+      if (d.tujuan_surat) setTujuanSurat(sanitizeNullableString(d.tujuan_surat) || '');
+      if (d.perihal) setPerihal(sanitizeNullableString(d.perihal) || '');
+      if (d.sifat_surat) setSifatSurat(sanitizeNullableString(d.sifat_surat) || 'Biasa');
+      if (d.lampiran) setLampiran(sanitizeNullableString(d.lampiran) || '');
+      if (d.penandatangan) setPenandatangan(sanitizeNullableString(d.penandatangan) || '');
+      if (d.jabatan_penandatangan) setJabatanPenandatangan(sanitizeNullableString(d.jabatan_penandatangan) || '');
+      if (d.ringkasan) setRingkasan(sanitizeNullableString(d.ringkasan) || '');
+      if (Array.isArray(d.kata_kunci)) {
+        setKataKunci(
+          d.kata_kunci
+            .map((k) => sanitizeNullableString(k))
+            .filter((k): k is string => Boolean(k))
+        );
+      }
+      setTanggalKegiatan(sanitizeDate(d.tanggal_kegiatan) || '');
+      if (d.tempat_kegiatan) setTempatKegiatan(sanitizeNullableString(d.tempat_kegiatan) || '');
 
       // Match category
       if (d.klasifikasi && categories.length > 0) {
@@ -267,11 +280,8 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
       return;
     }
 
-    if (!file) {
-      setFormError('Berkas fisik dokumen surat belum dipilih.');
-      return;
-    }
-
+    // Berkas fisik bersifat opsional saat menyimpan karena berkas hanya diunggah untuk pembacaan isi surat oleh AI (tidak disimpan ke storage).
+    // Jika tidak ada berkas atau pengguna hanya ingin input data, tetap diizinkan menyimpan.
     // Check duplicate
     const dupCheck = await checkDuplicateLetterNumber(nomorSurat.trim());
     if (dupCheck.exists && dupCheck.letter && !duplicateLetter) {
@@ -286,21 +296,21 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
       const createRes = await createLetter(
         {
           letter_type: letterType,
-          agenda_number: agendaNumber.trim() || '',
+          agenda_number: sanitizeNullableString(agendaNumber) || '',
           letter_number: nomorSurat.trim(),
-          letter_date: tanggalSurat,
-          received_date: letterType === 'INCOMING' ? tanggalDiterima || null : null,
+          letter_date: sanitizeDate(tanggalSurat) || new Date().toISOString().split('T')[0],
+          received_date: letterType === 'INCOMING' ? sanitizeDate(tanggalDiterima) : null,
           sender: asalSurat.trim(),
           recipient: tujuanSurat.trim(),
           subject: perihal.trim(),
-          letter_nature: sifatSurat || 'Biasa',
-          attachment: lampiran.trim() || null,
-          signatory_name: penandatangan.trim() || null,
-          signatory_position: jabatanPenandatangan.trim() || null,
-          category_id: selectedCategoryId || null,
-          summary: ringkasan.trim() || null,
-          activity_date: tanggalKegiatan || null,
-          activity_location: tempatKegiatan.trim() || null,
+          letter_nature: sanitizeNullableString(sifatSurat) || 'Biasa',
+          attachment: sanitizeNullableString(lampiran),
+          signatory_name: sanitizeNullableString(penandatangan),
+          signatory_position: sanitizeNullableString(jabatanPenandatangan),
+          category_id: sanitizeNullableString(selectedCategoryId),
+          summary: sanitizeNullableString(ringkasan),
+          activity_date: sanitizeDate(tanggalKegiatan),
+          activity_location: sanitizeNullableString(tempatKegiatan),
           notes: kataKunci.length > 0 ? `Kata kunci AI: ${kataKunci.join(', ')}` : null,
           status: 'NEED_REVIEW',
         },
@@ -391,9 +401,12 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
                     Google Gemini
                   </span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 hidden md:inline">
+                    Tidak Menyimpan File
+                  </span>
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  Pembacaan dan ekstraksi otomatis dokumen surat resmi SMP Bhinneka Tunggal Ika
+                  Pembacaan dan ekstraksi otomatis isi surat oleh AI (berkas fisik tidak disimpan ke penyimpanan/database)
                 </p>
               </div>
             </div>
@@ -580,7 +593,7 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
                     </div>
                     <p className="text-xs font-semibold text-slate-700">Pilih Berkas atau Foto Surat Fisik</p>
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Mendukung PDF, Word (DOC/DOCX), atau foto surat langsung lewat kamera HP (JPG, PNG).
+                      Mendukung PDF, Word (DOC/DOCX), atau foto surat langsung lewat kamera HP (JPG, PNG). File hanya digunakan untuk membaca isi surat dan tidak akan disimpan ke server.
                     </p>
                     <div className="mt-4 flex items-center justify-center gap-2">
                       <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 rounded-xl cursor-pointer border border-slate-300 shadow-2xs">

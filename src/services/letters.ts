@@ -10,6 +10,7 @@ import {
   ComprehensiveReportStats,
   ReportArchive,
 } from '../types';
+import { compareLetterNumbers, sanitizeDate, sanitizeNullableString } from '../utils/stringUtils';
 
 /**
  * Mengambil statistik dashboard dari database nyata.
@@ -419,20 +420,35 @@ export async function createLetter(
   }
 
   try {
-    // 1. Tentukan nomor agenda secara atomic jika kosong
-    let finalAgendaNumber = letterData.agenda_number ? letterData.agenda_number.trim() : null;
+    // 1. Sanitasi semua kolom bertipe date dan nullable secara ketat
+    const sanitizedLetterDate =
+      sanitizeDate(letterData.letter_date) || new Date().toISOString().split('T')[0];
+    const sanitizedReceivedDate =
+      letterData.letter_type === 'INCOMING' ? sanitizeDate(letterData.received_date) : null;
+    const sanitizedActivityDate = sanitizeDate(letterData.activity_date);
+
+    // 2. Tentukan nomor agenda secara atomic jika kosong
+    let finalAgendaNumber = sanitizeNullableString(letterData.agenda_number);
     if (!finalAgendaNumber) {
-      const year = letterData.letter_date
-        ? new Date(letterData.letter_date).getFullYear()
-        : new Date().getFullYear();
+      const year = new Date(sanitizedLetterDate).getFullYear();
       finalAgendaNumber = await getOrGenerateNextAgendaNumber(letterData.letter_type, year);
     }
 
-    // 2. Simpan record surat ke tabel letters
+    // 3. Susun payload bersih tanpa string literal "null" atau invalid date
     const payload = {
       ...letterData,
+      letter_date: sanitizedLetterDate,
+      received_date: sanitizedReceivedDate,
+      activity_date: sanitizedActivityDate,
       agenda_number: finalAgendaNumber,
-      created_by: currentUserId || null,
+      category_id: sanitizeNullableString(letterData.category_id),
+      attachment: sanitizeNullableString(letterData.attachment),
+      signatory_name: sanitizeNullableString(letterData.signatory_name),
+      signatory_position: sanitizeNullableString(letterData.signatory_position),
+      summary: sanitizeNullableString(letterData.summary),
+      activity_location: sanitizeNullableString(letterData.activity_location),
+      notes: sanitizeNullableString(letterData.notes),
+      created_by: sanitizeNullableString(currentUserId),
       status: letterData.status || 'NEED_REVIEW',
     };
 
@@ -451,33 +467,11 @@ export async function createLetter(
       return { data: null, error: letterError.message };
     }
 
-    // 3. Jika ada file fisik terlampir, unggah ke storage privat 'letter-files'
-    if (fileToUpload && newLetter?.id) {
-      try {
-        const uploaded = await uploadLetterFile(
-          fileToUpload,
-          newLetter.id,
-          letterData.letter_type,
-          letterData.letter_date
-        );
-        if (uploaded) {
-          await supabase.from('letter_files').insert({
-            letter_id: newLetter.id,
-            file_name: uploaded.name,
-            file_path: uploaded.path,
-            file_type: uploaded.type,
-            file_size: uploaded.size,
-            storage_bucket: 'letter-files',
-            uploaded_by: currentUserId || null,
-          });
-        }
-      } catch (fileErr: unknown) {
-        const errMsg = fileErr instanceof Error ? fileErr.message : 'Gagal mengunggah file lampiran.';
-        console.error('Peringatan: Gagal menyimpan file lampiran:', errMsg);
-      }
-    }
+    // 4. Catatan: Berkas dokumen surat TIDAK disimpan ke database maupun storage buckets.
+    // Berkas yang diunggah hanya diproses di memori browser/server untuk kebutuhan membaca & mengekstrak isi surat oleh AI (Privacy & ephemeral processing).
+    // Tidak ada pemanggilan uploadLetterFile maupun penyimpanan ke tabel letter_files.
 
-    // 4. Catat ke audit log
+    // 5. Catat ke audit log
     if (newLetter?.id && currentUserId) {
       await logLetterAction(
         newLetter.id,
@@ -513,30 +507,51 @@ export async function updateLetter(
     // 1. Ambil data surat saat ini untuk perbandingan audit log (old_data)
     const { data: oldData } = await supabase.from('letters').select('*').eq('id', id).single();
 
-    // 2. Jika ada file lampiran baru yang diunggah
-    if (fileToUpload) {
-      const type = (updates.letter_type || oldData?.letter_type || 'INCOMING') as LetterType;
-      const date = (updates.letter_date || oldData?.letter_date) as string;
-      const uploaded = await uploadLetterFile(fileToUpload, id, type, date);
-      if (uploaded) {
-        await supabase.from('letter_files').insert({
-          letter_id: id,
-          file_name: uploaded.name,
-          file_path: uploaded.path,
-          file_type: uploaded.type,
-          file_size: uploaded.size,
-          storage_bucket: 'letter-files',
-          uploaded_by: currentUserId || null,
-        });
-      }
-    }
+    // 2. Catatan: Berkas dokumen surat TIDAK disimpan ke database maupun storage buckets.
+    // Berkas yang diunggah hanya diproses untuk pembacaan isi surat.
+    // Tidak ada pemanggilan uploadLetterFile maupun penyimpanan ke tabel letter_files.
 
-    // 3. Bersihkan fields joined dari updates payload
-    const cleanedUpdates = { ...updates };
-    delete (cleanedUpdates as Record<string, unknown>).category;
-    delete (cleanedUpdates as Record<string, unknown>).files;
-    delete (cleanedUpdates as Record<string, unknown>).creator;
-    delete (cleanedUpdates as Record<string, unknown>).verifier;
+    // 3. Bersihkan fields joined dari updates payload dan sanitasi tipe date & nullable
+    const cleanedUpdates: Record<string, unknown> = { ...updates };
+    delete cleanedUpdates.category;
+    delete cleanedUpdates.files;
+    delete cleanedUpdates.creator;
+    delete cleanedUpdates.verifier;
+
+    if ('letter_date' in cleanedUpdates) {
+      cleanedUpdates.letter_date =
+        sanitizeDate(cleanedUpdates.letter_date) || oldData?.letter_date || new Date().toISOString().split('T')[0];
+    }
+    if ('received_date' in cleanedUpdates) {
+      cleanedUpdates.received_date = sanitizeDate(cleanedUpdates.received_date);
+    }
+    if ('activity_date' in cleanedUpdates) {
+      cleanedUpdates.activity_date = sanitizeDate(cleanedUpdates.activity_date);
+    }
+    if ('category_id' in cleanedUpdates) {
+      cleanedUpdates.category_id = sanitizeNullableString(cleanedUpdates.category_id);
+    }
+    if ('agenda_number' in cleanedUpdates) {
+      cleanedUpdates.agenda_number = sanitizeNullableString(cleanedUpdates.agenda_number);
+    }
+    if ('attachment' in cleanedUpdates) {
+      cleanedUpdates.attachment = sanitizeNullableString(cleanedUpdates.attachment);
+    }
+    if ('signatory_name' in cleanedUpdates) {
+      cleanedUpdates.signatory_name = sanitizeNullableString(cleanedUpdates.signatory_name);
+    }
+    if ('signatory_position' in cleanedUpdates) {
+      cleanedUpdates.signatory_position = sanitizeNullableString(cleanedUpdates.signatory_position);
+    }
+    if ('summary' in cleanedUpdates) {
+      cleanedUpdates.summary = sanitizeNullableString(cleanedUpdates.summary);
+    }
+    if ('activity_location' in cleanedUpdates) {
+      cleanedUpdates.activity_location = sanitizeNullableString(cleanedUpdates.activity_location);
+    }
+    if ('notes' in cleanedUpdates) {
+      cleanedUpdates.notes = sanitizeNullableString(cleanedUpdates.notes);
+    }
 
     const { data: updatedLetter, error } = await supabase
       .from('letters')
@@ -919,14 +934,14 @@ export async function getJournalLetters(params: JournalFilterParams): Promise<Le
       query = query.lte(dateCol, params.period_end);
     }
 
-    // Default sorting according to official specs:
-    if (params.letter_type === 'INCOMING') {
-      query = query
-        .order('received_date', { ascending: true, nullsFirst: false })
-        .order('agenda_number', { ascending: true, nullsFirst: false });
+    // Default sorting or custom sorting
+    if (params?.sort_by) {
+      const isAsc = params.sort_direction !== 'desc';
+      query = query.order(params.sort_by, { ascending: isAsc, nullsFirst: false });
     } else {
+      // Default: urut berdasarkan nomor surat (letter_number)
       query = query
-        .order('letter_date', { ascending: true, nullsFirst: false })
+        .order('letter_number', { ascending: true, nullsFirst: false })
         .order('agenda_number', { ascending: true, nullsFirst: false });
     }
 
@@ -937,7 +952,19 @@ export async function getJournalLetters(params: JournalFilterParams): Promise<Le
       return [];
     }
 
-    return (data as Letter[]) || [];
+    const resultLetters = (data as Letter[]) || [];
+
+    // Natural alphanumeric sorting for letter_number or agenda_number
+    const sortBy = params?.sort_by || 'letter_number';
+    const sortDir = params?.sort_direction || 'asc';
+
+    if (sortBy === 'letter_number') {
+      resultLetters.sort((a, b) => compareLetterNumbers(a.letter_number, b.letter_number, sortDir));
+    } else if (sortBy === 'agenda_number') {
+      resultLetters.sort((a, b) => compareLetterNumbers(a.agenda_number, b.agenda_number, sortDir));
+    }
+
+    return resultLetters;
   } catch (err) {
     console.error('Error in getJournalLetters:', err);
     return [];

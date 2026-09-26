@@ -16,6 +16,7 @@ import {
   Camera,
   Image,
 } from 'lucide-react';
+import { sanitizeDate, sanitizeNullableString } from '../utils/stringUtils';
 
 interface EditLetterModalProps {
   letter: Letter | null;
@@ -75,22 +76,22 @@ export const EditLetterModal: React.FC<EditLetterModalProps> = ({
   useEffect(() => {
     if (letter) {
       setLetterType(letter.letter_type);
-      setAgendaNumber(letter.agenda_number || '');
-      setLetterNumber(letter.letter_number);
-      setLetterDate(letter.letter_date || '');
-      setReceivedDate(letter.received_date || '');
-      setSender(letter.sender || '');
-      setRecipient(letter.recipient || '');
-      setSubject(letter.subject || '');
-      setLetterNature(letter.letter_nature || 'Biasa');
-      setAttachment(letter.attachment || '');
-      setSignatoryName(letter.signatory_name || '');
-      setSignatoryPosition(letter.signatory_position || '');
-      setSummary(letter.summary || '');
-      setCategoryId(letter.category_id || '');
-      setActivityDate(letter.activity_date || '');
-      setActivityLocation(letter.activity_location || '');
-      setNotes(letter.notes || '');
+      setAgendaNumber(sanitizeNullableString(letter.agenda_number) || '');
+      setLetterNumber(letter.letter_number || '');
+      setLetterDate(sanitizeDate(letter.letter_date) || '');
+      setReceivedDate(sanitizeDate(letter.received_date) || '');
+      setSender(sanitizeNullableString(letter.sender) || '');
+      setRecipient(sanitizeNullableString(letter.recipient) || '');
+      setSubject(sanitizeNullableString(letter.subject) || '');
+      setLetterNature(sanitizeNullableString(letter.letter_nature) || 'Biasa');
+      setAttachment(sanitizeNullableString(letter.attachment) || '');
+      setSignatoryName(sanitizeNullableString(letter.signatory_name) || '');
+      setSignatoryPosition(sanitizeNullableString(letter.signatory_position) || '');
+      setSummary(sanitizeNullableString(letter.summary) || '');
+      setCategoryId(sanitizeNullableString(letter.category_id) || '');
+      setActivityDate(sanitizeDate(letter.activity_date) || '');
+      setActivityLocation(sanitizeNullableString(letter.activity_location) || '');
+      setNotes(sanitizeNullableString(letter.notes) || '');
       setStatus(letter.status);
       setSelectedFile(null);
       setErrorMsg(null);
@@ -108,22 +109,22 @@ export const EditLetterModal: React.FC<EditLetterModalProps> = ({
         letter.id,
         {
           letter_type: letterType,
-          agenda_number: agendaNumber.trim() || null,
+          agenda_number: sanitizeNullableString(agendaNumber),
           letter_number: letterNumber.trim(),
-          letter_date: letterDate,
-          received_date: letterType === 'INCOMING' ? (receivedDate || null) : null,
+          letter_date: sanitizeDate(letterDate) || new Date().toISOString().split('T')[0],
+          received_date: letterType === 'INCOMING' ? sanitizeDate(receivedDate) : null,
           sender: sender.trim(),
           recipient: recipient.trim(),
           subject: subject.trim(),
-          letter_nature: letterNature || null,
-          attachment: attachment.trim() || null,
-          signatory_name: signatoryName.trim() || null,
-          signatory_position: signatoryPosition.trim() || null,
-          summary: summary.trim() || null,
-          category_id: categoryId || null,
-          activity_date: activityDate || null,
-          activity_location: activityLocation.trim() || null,
-          notes: notes.trim() || null,
+          letter_nature: sanitizeNullableString(letterNature) || 'Biasa',
+          attachment: sanitizeNullableString(attachment),
+          signatory_name: sanitizeNullableString(signatoryName),
+          signatory_position: sanitizeNullableString(signatoryPosition),
+          summary: sanitizeNullableString(summary),
+          category_id: sanitizeNullableString(categoryId),
+          activity_date: sanitizeDate(activityDate),
+          activity_location: sanitizeNullableString(activityLocation),
+          notes: sanitizeNullableString(notes),
           status,
         },
         selectedFile,
@@ -454,10 +455,10 @@ export const EditLetterModal: React.FC<EditLetterModalProps> = ({
               </div>
             </div>
 
-            {/* Row 8: Unggah File Tambahan / Baru */}
+            {/* Row 8: Unggah File (Hanya untuk referensi baca, tidak disimpan ke server) */}
             <div>
               <label className="block font-semibold uppercase tracking-wider mb-1.5 text-slate-600 text-xs">
-                Unggah Berkas Fisik Baru (Opsional &bull; Maks 20MB)
+                Dokumen / Foto Surat (Hanya Untuk Membaca Isi Surat)
               </label>
 
               <input
@@ -486,8 +487,8 @@ export const EditLetterModal: React.FC<EditLetterModalProps> = ({
                       <p className="text-xs font-semibold text-slate-800 truncate">
                         {selectedFile.name}
                       </p>
-                      <p className="text-[10px] text-slate-500">
-                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Siap dilampirkan
+                      <p className="text-[10px] text-emerald-700 font-medium">
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; File tidak akan disimpan ke server
                       </p>
                     </div>
                   </div>
@@ -512,7 +513,7 @@ export const EditLetterModal: React.FC<EditLetterModalProps> = ({
                       type="button"
                       onClick={() => setSelectedFile(null)}
                       className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                      title="Batal melampirkan berkas baru"
+                      title="Batal"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -531,7 +532,7 @@ export const EditLetterModal: React.FC<EditLetterModalProps> = ({
                       Pilih berkas baru atau foto fisik surat dengan kamera HP
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      Format: PDF, Word (.doc, .docx), atau Foto (JPG, PNG, WEBP)
+                      File diunggah hanya untuk pembacaan isi surat dan tidak akan disimpan ke server.
                     </p>
 
                     <div className="flex items-center gap-2 mt-1">

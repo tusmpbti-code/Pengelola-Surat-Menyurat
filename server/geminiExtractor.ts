@@ -1,5 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import * as mammoth from 'mammoth';
+import fs from 'fs';
+import path from 'path';
 
 export interface LetterAIExtraction {
   jenis_surat: 'INCOMING' | 'OUTGOING' | null;
@@ -59,13 +61,39 @@ Klasifikasi harus mengikuti master klasifikasi yang diberikan aplikasi.
 Kembalikan JSON sesuai schema.`;
 
 const CANDIDATE_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-flash-latest',
   'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+  'gemini-3.8-flash',
 ];
 
+export function getResolvedGeminiApiKey(): string {
+  let key = (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.API_KEY ||
+    ''
+  ).trim().replace(/^["']|["']$/g, '');
+
+  if (!key || key === 'MY_GEMINI_API_KEY') {
+    try {
+      const envPath = path.resolve(process.cwd(), '.env');
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf-8');
+        const match = content.match(/^GEMINI_API_KEY=(.*)$/m);
+        if (match && match[1]) {
+          key = match[1].trim().replace(/^["']|["']$/g, '');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return key;
+}
+
 export function checkGeminiConfigured(): { configured: boolean; message: string } {
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  const apiKey = getResolvedGeminiApiKey();
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.length < 10) {
     return {
       configured: false,
@@ -76,6 +104,55 @@ export function checkGeminiConfigured(): { configured: boolean; message: string 
     configured: true,
     message: 'Engine Google Gemini siap digunakan.',
   };
+}
+
+function cleanStringOrNull(val: unknown): string | null {
+  if (val === null || val === undefined) return null;
+  const str = String(val).trim();
+  if (
+    !str ||
+    str.toLowerCase() === 'null' ||
+    str.toLowerCase() === 'undefined' ||
+    str.toLowerCase() === 'n/a' ||
+    str.toLowerCase() === 'none' ||
+    str.toLowerCase() === '-'
+  ) {
+    return null;
+  }
+  return str;
+}
+
+function cleanDateOrNull(val: unknown): string | null {
+  const str = cleanStringOrNull(val);
+  if (!str) return null;
+
+  // Format YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return str;
+  }
+
+  // Format DD-MM-YYYY atau DD/MM/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3];
+    const isoStr = `${year}-${month}-${day}`;
+    const d = new Date(isoStr);
+    if (!isNaN(d.getTime())) return isoStr;
+  }
+
+  try {
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 export function formatGeminiError(error: any): string {
@@ -119,7 +196,7 @@ export function formatGeminiError(error: any): string {
 }
 
 function getGeminiClient(): GoogleGenAI {
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  const apiKey = getResolvedGeminiApiKey();
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.length < 10) {
     throw new Error(
       'GEMINI_API_KEY belum dikonfigurasi di environment server atau masih menggunakan nilai placeholder. Silakan buka menu Settings > Secrets di Google AI Studio untuk memasukkan GEMINI_API_KEY Anda.'
@@ -407,29 +484,31 @@ PENTING:
 
     const parsed = JSON.parse(cleanJson);
 
-    // Normalize result structure ensuring compliant null defaults
+    // Normalize result structure ensuring compliant null defaults and strict date formats
     const structuredData: LetterAIExtraction = {
       jenis_surat:
         parsed.jenis_surat === 'INCOMING' || parsed.jenis_surat === 'OUTGOING'
           ? parsed.jenis_surat
           : req.userHintType || null,
-      nomor_surat: parsed.nomor_surat && String(parsed.nomor_surat).trim() !== '' ? String(parsed.nomor_surat).trim() : null,
-      tanggal_surat: parsed.tanggal_surat && String(parsed.tanggal_surat).trim() !== '' ? String(parsed.tanggal_surat).trim() : null,
-      tanggal_diterima: parsed.tanggal_diterima && String(parsed.tanggal_diterima).trim() !== '' ? String(parsed.tanggal_diterima).trim() : null,
-      asal_surat: parsed.asal_surat && String(parsed.asal_surat).trim() !== '' ? String(parsed.asal_surat).trim() : null,
-      tujuan_surat: parsed.tujuan_surat && String(parsed.tujuan_surat).trim() !== '' ? String(parsed.tujuan_surat).trim() : null,
-      perihal: parsed.perihal && String(parsed.perihal).trim() !== '' ? String(parsed.perihal).trim() : null,
-      sifat_surat: parsed.sifat_surat && String(parsed.sifat_surat).trim() !== '' ? String(parsed.sifat_surat).trim() : null,
-      lampiran: parsed.lampiran && String(parsed.lampiran).trim() !== '' ? String(parsed.lampiran).trim() : null,
-      penandatangan: parsed.penandatangan && String(parsed.penandatangan).trim() !== '' ? String(parsed.penandatangan).trim() : null,
-      jabatan_penandatangan: parsed.jabatan_penandatangan && String(parsed.jabatan_penandatangan).trim() !== '' ? String(parsed.jabatan_penandatangan).trim() : null,
-      ringkasan: parsed.ringkasan && String(parsed.ringkasan).trim() !== '' ? String(parsed.ringkasan).trim() : null,
+      nomor_surat: cleanStringOrNull(parsed.nomor_surat),
+      tanggal_surat: cleanDateOrNull(parsed.tanggal_surat),
+      tanggal_diterima: cleanDateOrNull(parsed.tanggal_diterima),
+      asal_surat: cleanStringOrNull(parsed.asal_surat),
+      tujuan_surat: cleanStringOrNull(parsed.tujuan_surat),
+      perihal: cleanStringOrNull(parsed.perihal),
+      sifat_surat: cleanStringOrNull(parsed.sifat_surat),
+      lampiran: cleanStringOrNull(parsed.lampiran),
+      penandatangan: cleanStringOrNull(parsed.penandatangan),
+      jabatan_penandatangan: cleanStringOrNull(parsed.jabatan_penandatangan),
+      ringkasan: cleanStringOrNull(parsed.ringkasan),
       kata_kunci: Array.isArray(parsed.kata_kunci)
-        ? parsed.kata_kunci.filter((k: unknown) => typeof k === 'string' && k.trim().length > 0)
+        ? parsed.kata_kunci
+            .map((k: unknown) => cleanStringOrNull(k))
+            .filter((k: string | null): k is string => Boolean(k))
         : [],
-      klasifikasi: parsed.klasifikasi && String(parsed.klasifikasi).trim() !== '' ? String(parsed.klasifikasi).trim() : null,
-      tanggal_kegiatan: parsed.tanggal_kegiatan && String(parsed.tanggal_kegiatan).trim() !== '' ? String(parsed.tanggal_kegiatan).trim() : null,
-      tempat_kegiatan: parsed.tempat_kegiatan && String(parsed.tempat_kegiatan).trim() !== '' ? String(parsed.tempat_kegiatan).trim() : null,
+      klasifikasi: cleanStringOrNull(parsed.klasifikasi),
+      tanggal_kegiatan: cleanDateOrNull(parsed.tanggal_kegiatan),
+      tempat_kegiatan: cleanStringOrNull(parsed.tempat_kegiatan),
     };
 
     return {

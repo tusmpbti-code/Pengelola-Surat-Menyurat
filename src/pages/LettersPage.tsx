@@ -34,7 +34,10 @@ import {
   Tag,
   Paperclip,
   Sparkles,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
+import { safeString, compareLetterNumbers } from '../utils/stringUtils';
 import { AIVerificationModal } from '../components/AIVerificationModal';
 
 interface LettersPageProps {
@@ -67,11 +70,11 @@ export const LettersPage: React.FC<LettersPageProps> = ({
   const [monthFilter, setMonthFilter] = useState<number | undefined>(undefined);
   const [showTrash, setShowTrash] = useState(false);
 
-  // Sorting
+  // Sorting: Urut berdasarkan nomor surat (letter_number) secara default
   const [sortBy, setSortBy] = useState<
     'agenda_number' | 'letter_date' | 'received_date' | 'letter_number' | 'created_at' | 'subject'
-  >('created_at');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  >('letter_number');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Pagination
   const [currentPageNum, setCurrentPageNum] = useState(1);
@@ -125,7 +128,14 @@ export const LettersPage: React.FC<LettersPageProps> = ({
         include_trash: showTrash,
       });
 
-      setLetters(res.letters);
+      const fetchedLetters = [...res.letters];
+      if (sortBy === 'letter_number') {
+        fetchedLetters.sort((a, b) => compareLetterNumbers(a.letter_number, b.letter_number, sortDirection));
+      } else if (sortBy === 'agenda_number') {
+        fetchedLetters.sort((a, b) => compareLetterNumbers(a.agenda_number, b.agenda_number, sortDirection));
+      }
+
+      setLetters(fetchedLetters);
       setTotalCount(res.total);
     } catch (err) {
       console.error('Gagal memuat arsip surat:', err);
@@ -564,24 +574,36 @@ export const LettersPage: React.FC<LettersPageProps> = ({
                 <tr>
                   <th className="px-4 py-3.5 w-12 text-center">No</th>
                   <th
-                    className="px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition"
+                    className={`px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition ${
+                      sortBy === 'agenda_number' ? 'text-blue-600 bg-blue-50/50' : ''
+                    }`}
                     onClick={() => handleSort('agenda_number')}
                   >
                     <div className="flex items-center gap-1">
                       <span>No. Agenda</span>
-                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      {sortBy === 'agenda_number' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      )}
                     </div>
                   </th>
 
                   {/* Surat Masuk: Tanggal Diterima */}
                   {pageType === 'INCOMING' && (
                     <th
-                      className="px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition"
+                      className={`px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition ${
+                        sortBy === 'received_date' ? 'text-blue-600 bg-blue-50/50' : ''
+                      }`}
                       onClick={() => handleSort('received_date')}
                     >
                       <div className="flex items-center gap-1">
                         <span>Tanggal Diterima</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                        {sortBy === 'received_date' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                        )}
                       </div>
                     </th>
                   )}
@@ -589,35 +611,53 @@ export const LettersPage: React.FC<LettersPageProps> = ({
                   {/* Surat Keluar atau Semua: Tanggal Surat */}
                   {(pageType === 'OUTGOING' || pageType === 'ALL') && (
                     <th
-                      className="px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition"
+                      className={`px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition ${
+                        sortBy === 'letter_date' ? 'text-blue-600 bg-blue-50/50' : ''
+                      }`}
                       onClick={() => handleSort('letter_date')}
                     >
                       <div className="flex items-center gap-1">
                         <span>Tanggal Surat</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                        {sortBy === 'letter_date' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                        )}
                       </div>
                     </th>
                   )}
 
                   <th
-                    className="px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition"
+                    className={`px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition ${
+                      sortBy === 'letter_number' ? 'text-blue-600 bg-blue-50/50' : ''
+                    }`}
                     onClick={() => handleSort('letter_number')}
                   >
                     <div className="flex items-center gap-1">
                       <span>Nomor Surat</span>
-                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      {sortBy === 'letter_number' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      )}
                     </div>
                   </th>
 
                   {/* Surat Masuk: Tanggal Surat */}
                   {pageType === 'INCOMING' && (
                     <th
-                      className="px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition"
+                      className={`px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition ${
+                        sortBy === 'letter_date' ? 'text-blue-600 bg-blue-50/50' : ''
+                      }`}
                       onClick={() => handleSort('letter_date')}
                     >
                       <div className="flex items-center gap-1">
                         <span>Tanggal Surat</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                        {sortBy === 'letter_date' ? (
+                          sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                        )}
                       </div>
                     </th>
                   )}
@@ -632,12 +672,18 @@ export const LettersPage: React.FC<LettersPageProps> = ({
                   </th>
 
                   <th
-                    className="px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition"
+                    className={`px-4 py-3.5 cursor-pointer hover:bg-slate-100/70 transition ${
+                      sortBy === 'subject' ? 'text-blue-600 bg-blue-50/50' : ''
+                    }`}
                     onClick={() => handleSort('subject')}
                   >
                     <div className="flex items-center gap-1">
                       <span>Perihal</span>
-                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      {sortBy === 'subject' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      )}
                     </div>
                   </th>
 
@@ -665,27 +711,27 @@ export const LettersPage: React.FC<LettersPageProps> = ({
 
                       {/* No. Agenda (Atomic Permanent) */}
                       <td className="px-4 py-3 font-mono font-bold text-slate-900 text-[11px]">
-                        {letter.agenda_number || '-'}
+                        {safeString(letter.agenda_number, '-')}
                       </td>
 
                       {/* Tanggal Diterima (Surat Masuk) */}
                       {pageType === 'INCOMING' && (
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                          {letter.received_date || '-'}
+                          {safeString(letter.received_date, '-')}
                         </td>
                       )}
 
                       {/* Tanggal Surat (Surat Keluar / Semua) */}
                       {(pageType === 'OUTGOING' || pageType === 'ALL') && (
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                          {letter.letter_date}
+                          {safeString(letter.letter_date, '-')}
                         </td>
                       )}
 
                       {/* Nomor Surat */}
                       <td className="px-4 py-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <span>{letter.letter_number}</span>
+                          <span>{safeString(letter.letter_number, '(Tanpa Nomor)')}</span>
                           {hasAttachment && (
                             <span title={`${letter.files?.length} berkas fisik terlampir`}>
                               <Paperclip className="w-3.5 h-3.5 text-blue-500 shrink-0" />
@@ -697,18 +743,18 @@ export const LettersPage: React.FC<LettersPageProps> = ({
                       {/* Tanggal Surat (Surat Masuk) */}
                       {pageType === 'INCOMING' && (
                         <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                          {letter.letter_date}
+                          {safeString(letter.letter_date, '-')}
                         </td>
                       )}
 
                       {/* Asal Surat / Tujuan Surat */}
                       <td className="px-4 py-3 text-slate-800 font-medium max-w-xs truncate">
-                        {pageType === 'INCOMING' ? letter.sender : letter.recipient}
+                        {safeString(pageType === 'INCOMING' ? letter.sender : letter.recipient, '-')}
                       </td>
 
                       {/* Perihal */}
                       <td className="px-4 py-3 text-slate-900 max-w-sm truncate font-medium">
-                        {letter.subject}
+                        {safeString(letter.subject, '(Tanpa Perihal)')}
                       </td>
 
                       {/* Klasifikasi */}
@@ -716,7 +762,7 @@ export const LettersPage: React.FC<LettersPageProps> = ({
                         {letter.category ? (
                           <span className="inline-flex items-center gap-1 text-[11px]">
                             <Tag className="w-3 h-3 text-slate-400" />
-                            {letter.category.code || letter.category.name}
+                            {safeString(letter.category.code || letter.category.name, '-')}
                           </span>
                         ) : (
                           '-'
@@ -725,7 +771,7 @@ export const LettersPage: React.FC<LettersPageProps> = ({
 
                       {/* Sifat */}
                       <td className="px-4 py-3 text-slate-700 whitespace-nowrap text-[11px]">
-                        {letter.letter_nature || 'Biasa'}
+                        {safeString(letter.letter_nature, 'Biasa')}
                       </td>
 
                       {/* Status */}

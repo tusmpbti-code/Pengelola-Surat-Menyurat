@@ -17,6 +17,7 @@ import {
   Camera,
   Image,
 } from 'lucide-react';
+import { sanitizeDate, sanitizeNullableString } from '../utils/stringUtils';
 
 interface CreateLetterModalProps {
   isOpen: boolean;
@@ -125,22 +126,22 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
       const res = await createLetter(
         {
           letter_type: letterType,
-          agenda_number: agendaNumber.trim() || null,
+          agenda_number: sanitizeNullableString(agendaNumber),
           letter_number: letterNumber.trim(),
-          letter_date: letterDate,
-          received_date: letterType === 'INCOMING' ? (receivedDate || null) : null,
+          letter_date: sanitizeDate(letterDate) || new Date().toISOString().split('T')[0],
+          received_date: letterType === 'INCOMING' ? sanitizeDate(receivedDate) : null,
           sender: sender.trim(),
           recipient: recipient.trim(),
           subject: subject.trim(),
-          letter_nature: letterNature || null,
-          attachment: attachment.trim() || null,
-          signatory_name: signatoryName.trim() || null,
-          signatory_position: signatoryPosition.trim() || null,
-          summary: summary.trim() || null,
-          category_id: categoryId || null,
-          activity_date: activityDate || null,
-          activity_location: activityLocation.trim() || null,
-          notes: notes.trim() || null,
+          letter_nature: sanitizeNullableString(letterNature) || 'Biasa',
+          attachment: sanitizeNullableString(attachment),
+          signatory_name: sanitizeNullableString(signatoryName),
+          signatory_position: sanitizeNullableString(signatoryPosition),
+          summary: sanitizeNullableString(summary),
+          category_id: sanitizeNullableString(categoryId),
+          activity_date: sanitizeDate(activityDate),
+          activity_location: sanitizeNullableString(activityLocation),
+          notes: sanitizeNullableString(notes),
           status,
         },
         selectedFile,
@@ -538,11 +539,11 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
               </div>
             </div>
 
-            {/* File Upload (Supported: PDF, Word DOC/DOCX, JPG, JPEG, PNG, WEBP, Max 20MB) */}
+            {/* File Upload (Hanya untuk membaca isi surat via AI / Ekstraksi dokumen, tidak disimpan ke server) */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block font-semibold uppercase tracking-wider text-slate-600 text-xs">
-                  Unggah Berkas / Foto Fisik Surat (Maks 20 MB)
+                  Unggah Dokumen / Foto Surat (Hanya Untuk Membaca Isi Surat)
                 </label>
                 {selectedFile && (
                   <button
@@ -583,8 +584,8 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
                       <p className="text-xs font-semibold text-slate-800 truncate">
                         {selectedFile.name}
                       </p>
-                      <p className="text-[10px] text-slate-500">
-                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Siap dilampirkan
+                      <p className="text-[10px] text-emerald-700 font-medium">
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Siap dibaca AI (file tidak akan disimpan ke server)
                       </p>
                     </div>
                   </div>
@@ -609,7 +610,7 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
                       type="button"
                       onClick={() => setSelectedFile(null)}
                       className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                      title="Hapus lampiran"
+                      title="Hapus file"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -625,10 +626,10 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
                     </div>
 
                     <p className="text-xs font-semibold text-slate-700">
-                      Pilih berkas dokumen atau potret fisik surat dengan kamera HP
+                      Pilih berkas dokumen atau potret fisik surat untuk dibaca oleh AI
                     </p>
                     <p className="text-[10px] text-slate-500 max-w-sm">
-                      Mendukung PDF, Word (DOC/DOCX), atau foto surat langsung (JPG, PNG, WEBP) hingga 20 MB.
+                      Mendukung PDF, Word (DOC/DOCX), atau foto fisik (JPG, PNG). File hanya diproses di memori untuk membaca isi surat dan tidak akan disimpan ke server.
                     </p>
 
                     <div className="flex items-center gap-2.5 mt-2">
@@ -734,18 +735,23 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
           onSwitchToManual={(switchedFile, partialData) => {
             setShowAIModal(false);
             if (switchedFile) setSelectedFile(switchedFile);
-            if (partialData?.nomor_surat) setLetterNumber(partialData.nomor_surat);
-            if (partialData?.perihal) setSubject(partialData.perihal);
-            if (partialData?.asal_surat) setSender(partialData.asal_surat);
-            if (partialData?.tujuan_surat) setRecipient(partialData.tujuan_surat);
+            if (partialData?.nomor_surat) setLetterNumber(sanitizeNullableString(partialData.nomor_surat) || '');
+            if (partialData?.perihal) setSubject(sanitizeNullableString(partialData.perihal) || '');
+            if (partialData?.asal_surat) setSender(sanitizeNullableString(partialData.asal_surat) || '');
+            if (partialData?.tujuan_surat) setRecipient(sanitizeNullableString(partialData.tujuan_surat) || '');
             if (partialData?.jenis_surat) setLetterType(partialData.jenis_surat);
-            if (partialData?.tanggal_surat) setLetterDate(partialData.tanggal_surat);
-            if (partialData?.tanggal_diterima) setReceivedDate(partialData.tanggal_diterima);
-            if (partialData?.sifat_surat) setLetterNature(partialData.sifat_surat);
-            if (partialData?.lampiran) setAttachment(partialData.lampiran);
-            if (partialData?.penandatangan) setSignatoryName(partialData.penandatangan);
-            if (partialData?.jabatan_penandatangan) setSignatoryPosition(partialData.jabatan_penandatangan);
-            if (partialData?.ringkasan) setSummary(partialData.ringkasan);
+            const validTanggalSurat = sanitizeDate(partialData?.tanggal_surat);
+            if (validTanggalSurat) setLetterDate(validTanggalSurat);
+            const validTanggalDiterima = sanitizeDate(partialData?.tanggal_diterima);
+            if (validTanggalDiterima) setReceivedDate(validTanggalDiterima);
+            if (partialData?.sifat_surat) setLetterNature(sanitizeNullableString(partialData.sifat_surat) || 'Biasa');
+            if (partialData?.lampiran) setAttachment(sanitizeNullableString(partialData.lampiran) || '');
+            if (partialData?.penandatangan) setSignatoryName(sanitizeNullableString(partialData.penandatangan) || '');
+            if (partialData?.jabatan_penandatangan) setSignatoryPosition(sanitizeNullableString(partialData.jabatan_penandatangan) || '');
+            if (partialData?.ringkasan) setSummary(sanitizeNullableString(partialData.ringkasan) || '');
+            const validTanggalKegiatan = sanitizeDate(partialData?.tanggal_kegiatan);
+            if (validTanggalKegiatan) setActivityDate(validTanggalKegiatan);
+            if (partialData?.tempat_kegiatan) setActivityLocation(sanitizeNullableString(partialData.tempat_kegiatan) || '');
           }}
           onViewExisting={onViewExisting}
         />

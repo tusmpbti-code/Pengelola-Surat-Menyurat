@@ -183,6 +183,8 @@ export interface JournalFilterParams {
   year?: number;
   category_id?: string;
   nature?: string;
+  sort_by?: 'letter_number' | 'agenda_number' | 'letter_date' | 'received_date';
+  sort_direction?: 'asc' | 'desc';
 }
 
 export interface JournalColumnConfig {

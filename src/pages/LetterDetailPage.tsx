@@ -41,6 +41,7 @@ import {
   Sparkles,
   Bot,
 } from 'lucide-react';
+import { safeString } from '../utils/stringUtils';
 
 interface LetterDetailPageProps {
   letterId: string;
@@ -239,11 +240,11 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
               </span>
               <span className="text-slate-300">&bull;</span>
               <span className="text-xs font-mono font-bold text-slate-700">
-                Agenda: {letter.agenda_number || '-'}
+                Agenda: {safeString(letter.agenda_number, '-')}
               </span>
             </div>
             <h2 className="text-lg font-bold text-slate-900 font-mono tracking-tight">
-              {letter.letter_number}
+              {safeString(letter.letter_number, '(Tanpa Nomor Surat)')}
             </h2>
           </div>
         </div>
@@ -372,7 +373,7 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                 Perihal Surat
               </span>
               <h3 className="text-base font-bold text-slate-900 mt-1 leading-snug">
-                {letter.subject}
+                {safeString(letter.subject, '(Tanpa Perihal)')}
               </h3>
             </div>
 
@@ -409,7 +410,7 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                   Nomor Agenda
                 </span>
                 <span className="font-mono font-bold text-slate-900">
-                  {letter.agenda_number || '-'}
+                  {safeString(letter.agenda_number, '-')}
                 </span>
               </div>
 
@@ -418,7 +419,7 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                   Sifat Surat
                 </span>
                 <span className="font-medium text-slate-800">
-                  {letter.letter_nature || 'Biasa'}
+                  {safeString(letter.letter_nature, 'Biasa')}
                 </span>
               </div>
 
@@ -426,7 +427,7 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                 <span className="text-[10px] font-semibold text-slate-400 uppercase block">
                   Tanggal Surat
                 </span>
-                <span className="font-medium text-slate-800">{letter.letter_date}</span>
+                <span className="font-medium text-slate-800">{safeString(letter.letter_date, '-')}</span>
               </div>
 
               <div>
@@ -434,7 +435,7 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                   Tanggal Diterima
                 </span>
                 <span className="font-medium text-slate-800">
-                  {letter.received_date || '-'}
+                  {safeString(letter.received_date, '-')}
                 </span>
               </div>
 
@@ -442,14 +443,14 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                 <span className="text-[10px] font-semibold text-slate-400 uppercase block">
                   Pengirim (Asal Surat)
                 </span>
-                <span className="font-semibold text-slate-900">{letter.sender}</span>
+                <span className="font-semibold text-slate-900">{safeString(letter.sender, '-')}</span>
               </div>
 
               <div className="col-span-2">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase block">
                   Tujuan (Penerima)
                 </span>
-                <span className="font-semibold text-slate-900">{letter.recipient}</span>
+                <span className="font-semibold text-slate-900">{safeString(letter.recipient, '-')}</span>
               </div>
 
               <div>
@@ -460,7 +461,7 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                   {letter.category ? (
                     <span className="inline-flex items-center gap-1">
                       <Tag className="w-3 h-3 text-slate-400" />
-                      {letter.category.name} {letter.category.code ? `(${letter.category.code})` : ''}
+                      {safeString(letter.category.name, '-')} {letter.category.code ? `(${letter.category.code})` : ''}
                     </span>
                   ) : (
                     '-'
@@ -472,7 +473,7 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
                 <span className="text-[10px] font-semibold text-slate-400 uppercase block">
                   Keterangan Lampiran
                 </span>
-                <span className="font-medium text-slate-800">{letter.attachment || '-'}</span>
+                <span className="font-medium text-slate-800">{safeString(letter.attachment, '-')}</span>
               </div>
 
               {/* Signatory */}
@@ -648,9 +649,9 @@ export const LetterDetailPage: React.FC<LetterDetailPageProps> = ({
             {!letter.files || letter.files.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
                 <FileText className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                <p className="font-semibold text-slate-700">Tidak ada berkas fisik terlampir.</p>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Anda dapat mengunggah berkas scan atau PDF melalui menu Edit Surat.
+                <p className="font-semibold text-slate-700">Tidak ada berkas fisik tersimpan.</p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                  Sesuai kebijakan privasi & penyimpanan, berkas yang diunggah hanya diproses secara langsung oleh AI untuk membaca isi surat dan tidak disimpan ke server.
                 </p>
               </div>
             ) : (

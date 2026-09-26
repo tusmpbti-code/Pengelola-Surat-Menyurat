@@ -27,7 +27,11 @@ import {
   FileText,
   AlertCircle,
   X,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
+import { safeString } from '../utils/stringUtils';
 
 interface JournalReportViewProps {
   letterType: 'INCOMING' | 'OUTGOING';
@@ -54,6 +58,9 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
   );
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedNature, setSelectedNature] = useState<string>('ALL');
+  // Urut berdasarkan nomor surat (letter_number) secara default sesuai permintaan pengguna
+  const [sortBy, setSortBy] = useState<'letter_number' | 'agenda_number' | 'letter_date' | 'received_date'>('letter_number');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Data state
   const [letters, setLetters] = useState<Letter[]>([]);
@@ -100,6 +107,8 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
         period_end: periodEnd || undefined,
         category_id: selectedCategory === 'ALL' ? undefined : selectedCategory,
         nature: selectedNature === 'ALL' ? undefined : selectedNature,
+        sort_by: sortBy,
+        sort_direction: sortDirection,
       });
       setLetters(data);
     } catch (err) {
@@ -112,7 +121,16 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
 
   useEffect(() => {
     loadJournalData();
-  }, [letterType, selectedYear, periodStart, periodEnd, selectedCategory, selectedNature]);
+  }, [letterType, selectedYear, periodStart, periodEnd, selectedCategory, selectedNature, sortBy, sortDirection]);
+
+  const handleSort = (col: 'letter_number' | 'agenda_number' | 'letter_date' | 'received_date') => {
+    if (sortBy === col) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(col);
+      setSortDirection('asc');
+    }
+  };
 
   // Preset Filters
   const applyPreset = (type: 'THIS_MONTH' | 'LAST_MONTH' | 'THIS_YEAR' | 'ALL') => {
@@ -662,26 +680,78 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                   <th className="py-2.5 px-3 border border-slate-300 text-center w-12">NO.</th>
                 )}
                 {columns.agenda_number && (
-                  <th className="py-2.5 px-3 border border-slate-300 text-center w-24">
-                    NO. AGENDA
+                  <th
+                    className={`py-2.5 px-3 border border-slate-300 text-center w-24 cursor-pointer hover:bg-slate-200/70 transition print-cursor-default ${
+                      sortBy === 'agenda_number' ? 'text-blue-700 bg-blue-50/50' : ''
+                    }`}
+                    onClick={() => handleSort('agenda_number')}
+                    title="Klik untuk mengurutkan berdasarkan No. Agenda"
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>NO. AGENDA</span>
+                      {sortBy === 'agenda_number' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600 print-hide" /> : <ArrowDown className="w-3 h-3 text-blue-600 print-hide" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-400 print-hide" />
+                      )}
+                    </div>
                   </th>
                 )}
 
                 {letterType === 'INCOMING' ? (
                   <>
                     {columns.received_date !== false && (
-                      <th className="py-2.5 px-3 border border-slate-300 w-28 text-center">
-                        TGL DITERIMA
+                      <th
+                        className={`py-2.5 px-3 border border-slate-300 w-28 text-center cursor-pointer hover:bg-slate-200/70 transition print-cursor-default ${
+                          sortBy === 'received_date' ? 'text-blue-700 bg-blue-50/50' : ''
+                        }`}
+                        onClick={() => handleSort('received_date')}
+                        title="Klik untuk mengurutkan berdasarkan Tanggal Diterima"
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <span>TGL DITERIMA</span>
+                          {sortBy === 'received_date' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600 print-hide" /> : <ArrowDown className="w-3 h-3 text-blue-600 print-hide" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-400 print-hide" />
+                          )}
+                        </div>
                       </th>
                     )}
                     {columns.letter_number && (
-                      <th className="py-2.5 px-3 border border-slate-300 w-44">
-                        NOMOR SURAT
+                      <th
+                        className={`py-2.5 px-3 border border-slate-300 w-44 cursor-pointer hover:bg-slate-200/70 transition print-cursor-default ${
+                          sortBy === 'letter_number' ? 'text-blue-700 bg-blue-50/50' : ''
+                        }`}
+                        onClick={() => handleSort('letter_number')}
+                        title="Klik untuk mengurutkan berdasarkan Nomor Surat"
+                      >
+                        <div className="flex items-center gap-1">
+                          <span>NOMOR SURAT</span>
+                          {sortBy === 'letter_number' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600 print-hide" /> : <ArrowDown className="w-3 h-3 text-blue-600 print-hide" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-400 print-hide" />
+                          )}
+                        </div>
                       </th>
                     )}
                     {columns.letter_date && (
-                      <th className="py-2.5 px-3 border border-slate-300 w-28 text-center">
-                        TGL SURAT
+                      <th
+                        className={`py-2.5 px-3 border border-slate-300 w-28 text-center cursor-pointer hover:bg-slate-200/70 transition print-cursor-default ${
+                          sortBy === 'letter_date' ? 'text-blue-700 bg-blue-50/50' : ''
+                        }`}
+                        onClick={() => handleSort('letter_date')}
+                        title="Klik untuk mengurutkan berdasarkan Tanggal Surat"
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <span>TGL SURAT</span>
+                          {sortBy === 'letter_date' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600 print-hide" /> : <ArrowDown className="w-3 h-3 text-blue-600 print-hide" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-400 print-hide" />
+                          )}
+                        </div>
                       </th>
                     )}
                     {columns.sender_or_recipient && (
@@ -700,13 +770,39 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                 ) : (
                   <>
                     {columns.letter_date && (
-                      <th className="py-2.5 px-3 border border-slate-300 w-28 text-center">
-                        TGL SURAT
+                      <th
+                        className={`py-2.5 px-3 border border-slate-300 w-28 text-center cursor-pointer hover:bg-slate-200/70 transition print-cursor-default ${
+                          sortBy === 'letter_date' ? 'text-blue-700 bg-blue-50/50' : ''
+                        }`}
+                        onClick={() => handleSort('letter_date')}
+                        title="Klik untuk mengurutkan berdasarkan Tanggal Surat"
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <span>TGL SURAT</span>
+                          {sortBy === 'letter_date' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600 print-hide" /> : <ArrowDown className="w-3 h-3 text-blue-600 print-hide" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-400 print-hide" />
+                          )}
+                        </div>
                       </th>
                     )}
                     {columns.letter_number && (
-                      <th className="py-2.5 px-3 border border-slate-300 w-44">
-                        NOMOR SURAT
+                      <th
+                        className={`py-2.5 px-3 border border-slate-300 w-44 cursor-pointer hover:bg-slate-200/70 transition print-cursor-default ${
+                          sortBy === 'letter_number' ? 'text-blue-700 bg-blue-50/50' : ''
+                        }`}
+                        onClick={() => handleSort('letter_number')}
+                        title="Klik untuk mengurutkan berdasarkan Nomor Surat"
+                      >
+                        <div className="flex items-center gap-1">
+                          <span>NOMOR SURAT</span>
+                          {sortBy === 'letter_number' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600 print-hide" /> : <ArrowDown className="w-3 h-3 text-blue-600 print-hide" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 text-slate-400 print-hide" />
+                          )}
+                        </div>
                       </th>
                     )}
                     {columns.sender_or_recipient && (
@@ -758,7 +854,7 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                     {/* Requirement O: Nomor Agenda langsung dari DB, tidak dihitung ulang */}
                     {columns.agenda_number && (
                       <td className="py-2 px-3 border border-slate-300 text-center font-bold text-slate-900">
-                        {l.agenda_number || '-'}
+                        {safeString(l.agenda_number, '-')}
                       </td>
                     )}
 
@@ -775,7 +871,7 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                             onClick={() => onNavigateToDetail?.(l.id)}
                             title="Klik untuk melihat detail"
                           >
-                            {l.letter_number}
+                            {safeString(l.letter_number, '(Tanpa Nomor)')}
                           </td>
                         )}
                         {columns.letter_date && (
@@ -785,22 +881,22 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                         )}
                         {columns.sender_or_recipient && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-800">
-                            {l.sender}
+                            {safeString(l.sender, '-')}
                           </td>
                         )}
                         {columns.subject && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-800">
-                            {l.subject}
+                            {safeString(l.subject, '(Tanpa Perihal)')}
                           </td>
                         )}
                         {columns.attachment && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-600">
-                            {l.attachment || '-'}
+                            {safeString(l.attachment, '-')}
                           </td>
                         )}
                         {columns.notes && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-600">
-                            {l.notes || l.letter_nature || '-'}
+                            {safeString(l.notes || l.letter_nature, '-')}
                           </td>
                         )}
                       </>
@@ -817,27 +913,27 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                             onClick={() => onNavigateToDetail?.(l.id)}
                             title="Klik untuk melihat detail"
                           >
-                            {l.letter_number}
+                            {safeString(l.letter_number, '(Tanpa Nomor)')}
                           </td>
                         )}
                         {columns.sender_or_recipient && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-800">
-                            {l.recipient}
+                            {safeString(l.recipient, '-')}
                           </td>
                         )}
                         {columns.subject && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-800">
-                            {l.subject}
+                            {safeString(l.subject, '(Tanpa Perihal)')}
                           </td>
                         )}
                         {columns.attachment && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-600">
-                            {l.attachment || '-'}
+                            {safeString(l.attachment, '-')}
                           </td>
                         )}
                         {columns.notes && (
                           <td className="py-2 px-3 border border-slate-300 text-slate-600">
-                            {l.notes || l.letter_nature || '-'}
+                            {safeString(l.notes || l.letter_nature, '-')}
                           </td>
                         )}
                       </>
@@ -980,7 +1076,7 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                         <tr key={l.id} className="border-b border-slate-200">
                           <td className="p-2 border border-slate-300 text-center">{i + 1}</td>
                           <td className="p-2 border border-slate-300 text-center font-bold">
-                            {l.agenda_number || '-'}
+                            {safeString(l.agenda_number, '-')}
                           </td>
                           {letterType === 'INCOMING' ? (
                             <>
@@ -988,13 +1084,13 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                                 {formatIndoDate(l.received_date)}
                               </td>
                               <td className="p-2 border border-slate-300 font-medium">
-                                {l.letter_number}
+                                {safeString(l.letter_number, '(Tanpa Nomor)')}
                               </td>
                               <td className="p-2 border border-slate-300 text-center">
                                 {formatIndoDate(l.letter_date)}
                               </td>
-                              <td className="p-2 border border-slate-300">{l.sender}</td>
-                              <td className="p-2 border border-slate-300">{l.subject}</td>
+                              <td className="p-2 border border-slate-300">{safeString(l.sender, '-')}</td>
+                              <td className="p-2 border border-slate-300">{safeString(l.subject, '(Tanpa Perihal)')}</td>
                             </>
                           ) : (
                             <>
@@ -1002,10 +1098,10 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
                                 {formatIndoDate(l.letter_date)}
                               </td>
                               <td className="p-2 border border-slate-300 font-medium">
-                                {l.letter_number}
+                                {safeString(l.letter_number, '(Tanpa Nomor)')}
                               </td>
-                              <td className="p-2 border border-slate-300">{l.recipient}</td>
-                              <td className="p-2 border border-slate-300">{l.subject}</td>
+                              <td className="p-2 border border-slate-300">{safeString(l.recipient, '-')}</td>
+                              <td className="p-2 border border-slate-300">{safeString(l.subject, '(Tanpa Perihal)')}</td>
                             </>
                           )}
                         </tr>

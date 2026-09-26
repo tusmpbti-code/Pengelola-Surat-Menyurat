@@ -18,6 +18,7 @@ import {
   FolderOpen,
   ArrowUpRight
 } from 'lucide-react';
+import { safeString } from '../utils/stringUtils';
 import { NavigationPage } from '../layouts/AppLayout';
 
 interface Props {
@@ -288,14 +289,14 @@ export const DashboardPage: React.FC<Props> = ({ onNavigate, onOpenCreateLetter 
                       )}
                     </td>
                     <td className="px-5 py-3 font-semibold text-slate-900 font-mono">
-                      {letter.letter_number}
+                      {safeString(letter.letter_number, '(Tanpa Nomor)')}
                     </td>
-                    <td className="px-5 py-3 text-slate-600">{letter.letter_date}</td>
+                    <td className="px-5 py-3 text-slate-600">{safeString(letter.letter_date, '-')}</td>
                     <td className="px-5 py-3 font-medium text-slate-900 max-w-xs truncate">
-                      {letter.subject}
+                      {safeString(letter.subject, '(Tanpa Perihal)')}
                     </td>
                     <td className="px-5 py-3 text-slate-600">
-                      {letter.letter_type === 'INCOMING' ? letter.sender : letter.recipient}
+                      {safeString(letter.letter_type === 'INCOMING' ? letter.sender : letter.recipient, '-')}
                     </td>
                     <td className="px-5 py-3">
                       <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-slate-100 text-slate-700">
