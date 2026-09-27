@@ -5,12 +5,12 @@ import { createServer as createViteServer } from 'vite';
 import {
   extractLetterFromDocument,
   checkGeminiConfigured,
-  ExtractionRequest,
-} from './server/geminiExtractor';
+} from './server/geminiExtractor.ts';
+import type { ExtractionRequest } from './server/geminiExtractor.ts';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Enable generous payload limits for base64 scanned documents & high-res camera photos
   app.use(express.json({ limit: '50mb' }));

@@ -64,11 +64,10 @@ export function humanizeAIError(err: unknown): string {
   
   if (
     raw.includes('API_KEY') ||
-    raw.includes('apiKey') ||
     raw.includes('API_KEY_INVALID') ||
     raw.includes('API key not valid')
   ) {
-    return 'Kunci GEMINI_API_KEY server belum dikonfigurasi di Secrets. Silakan tambahkan GEMINI_API_KEY di menu Settings > Secrets AI Studio, atau gunakan tombol "Input Manual" di bawah untuk langsung mengisi data surat.';
+    return 'Kunci GEMINI_API_KEY server belum dikonfigurasi. Jika membuka di Google AI Studio, pastikan kunci aktif di menu Settings > Secrets. Jika membuka di hosting mandiri (Netlify/Vercel/server), tambahkan environment variable GEMINI_API_KEY di dashboard hosting Anda, atau gunakan tombol "Input Manual" di bawah untuk langsung mengisi data surat.';
   }
 
   if (

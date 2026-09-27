@@ -1,8 +1,8 @@
 import {
   extractLetterFromDocument,
-  ExtractionRequest,
   formatGeminiError,
-} from '../../server/geminiExtractor';
+} from '../../server/geminiExtractor.ts';
+import type { ExtractionRequest } from '../../server/geminiExtractor.ts';
 
 export const handler = async (event: {
   httpMethod: string;

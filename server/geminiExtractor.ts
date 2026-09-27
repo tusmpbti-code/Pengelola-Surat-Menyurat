@@ -174,11 +174,10 @@ export function formatGeminiError(error: any): string {
 
   if (
     rawMsg.includes('GEMINI_API_KEY') ||
-    rawMsg.includes('apiKey') ||
     rawMsg.includes('API_KEY_INVALID') ||
     rawMsg.includes('API key not valid')
   ) {
-    return 'Kunci GEMINI_API_KEY server belum diatur atau belum valid di panel Secrets. Silakan tambahkan GEMINI_API_KEY di menu Settings > Secrets AI Studio, atau gunakan tombol "Input Manual" untuk langsung mengisi formulir surat.';
+    return 'Kunci GEMINI_API_KEY server belum dikonfigurasi. Jika menggunakan Google AI Studio, pastikan kunci telah aktif di menu Settings > Secrets. Jika aplikasi di-hosting di luar AI Studio (seperti Netlify, Vercel, atau server lokal), tambahkan environment variable GEMINI_API_KEY di pengaturan hosting Anda. Anda juga dapat menggunakan tombol "Input Manual" untuk mengisi formulir surat secara langsung.';
   }
 
   if (
