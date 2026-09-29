@@ -16,6 +16,7 @@ import {
   Sparkles,
   Camera,
   Image,
+  Edit3,
 } from 'lucide-react';
 import {
   sanitizeDate,
@@ -245,21 +246,38 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
 
           {/* Scrollable Form */}
           <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 text-xs text-slate-700">
+            {/* Mode Selector: Scan & Pindai AI (Otomatis) vs Mode Input Manual */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowAIModal(true)}
+                className="flex-1 py-2 px-3 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer min-h-[38px]"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Scan & Pindai AI (Otomatis)</span>
+                <span className="text-[10px] bg-emerald-800/60 px-1.5 py-0.5 rounded font-normal hidden sm:inline">Google Gemini</span>
+              </button>
+              <div className="flex-1 py-2 px-3 text-xs font-semibold rounded-lg text-slate-800 bg-white shadow-2xs flex items-center justify-center gap-1.5 min-h-[38px] border border-slate-200">
+                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                <span>Mode Input Manual</span>
+              </div>
+            </div>
+
             {/* AI Assistant Banner */}
             <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-emerald-500 text-white rounded-lg shadow-xs">
-                  <Sparkles className="w-4 h-4" />
+                  <Camera className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="font-semibold text-emerald-950 text-xs flex items-center gap-1.5">
-                    <span>AI Document Extraction</span>
+                    <span>Fitur Scan & Pindai Dokumen AI</span>
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-200/60 text-emerald-800">
                       Google Gemini
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-800">
-                    Ekstrak nomor, tanggal, pengirim, perihal, dan klasifikasi otomatis dari scan / berkas PDF surat.
+                    Pindai via kamera HP atau unggah berkas PDF/Word untuk ekstraksi nomor, tanggal, asal, tujuan, dan perihal surat otomatis.
                   </p>
                 </div>
               </div>
@@ -267,10 +285,10 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAIModal(true)}
-                className="w-full sm:w-auto px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer min-h-[38px]"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Baca dengan AI</span>
+                <Camera className="w-3.5 h-3.5" />
+                <span>Buka Scan & Pindai AI</span>
               </button>
             </div>
 
@@ -627,7 +645,16 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => setShowAIModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition"
+                      title="Ekstrak data surat otomatis dari berkas ini menggunakan Google Gemini"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Baca dengan AI</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setShowCameraModal(true)}

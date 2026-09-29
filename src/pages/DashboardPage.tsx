@@ -16,7 +16,9 @@ import {
   Building2,
   RefreshCw,
   FolderOpen,
-  ArrowUpRight
+  ArrowUpRight,
+  Sparkles,
+  Camera,
 } from 'lucide-react';
 import { safeString } from '../utils/stringUtils';
 import { NavigationPage } from '../layouts/AppLayout';
@@ -24,9 +26,14 @@ import { NavigationPage } from '../layouts/AppLayout';
 interface Props {
   onNavigate: (page: NavigationPage) => void;
   onOpenCreateLetter: (type: 'INCOMING' | 'OUTGOING') => void;
+  onOpenAIModal?: () => void;
 }
 
-export const DashboardPage: React.FC<Props> = ({ onNavigate, onOpenCreateLetter }) => {
+export const DashboardPage: React.FC<Props> = ({
+  onNavigate,
+  onOpenCreateLetter,
+  onOpenAIModal,
+}) => {
   const { profile } = useAuth();
   const { settings } = useSettings();
   const { canManageLetters } = usePermissions();
@@ -101,7 +108,17 @@ export const DashboardPage: React.FC<Props> = ({ onNavigate, onOpenCreateLetter 
               <span>Refresh</span>
             </button>
             {canManageLetters && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                {onOpenAIModal && (
+                  <button
+                    onClick={onOpenAIModal}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-sm transition cursor-pointer"
+                    title="Pindai fisik surat dengan kamera atau unggah berkas (AI)"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-slate-950" />
+                    <span>Scan & Pindai AI</span>
+                  </button>
+                )}
                 <button
                   onClick={() => onOpenCreateLetter('INCOMING')}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition"

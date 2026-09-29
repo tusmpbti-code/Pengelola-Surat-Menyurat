@@ -21,7 +21,9 @@ import {
   Database,
   CheckCircle2,
   AlertCircle,
-  FileText
+  FileText,
+  Camera,
+  Sparkles,
 } from 'lucide-react';
 import { SupabaseConfigModal } from '../components/SupabaseConfigModal';
 
@@ -43,12 +45,14 @@ export type NavigationPage =
 interface AppLayoutProps {
   currentPage: NavigationPage;
   onNavigate: (page: NavigationPage) => void;
+  onOpenScanAI?: () => void;
   children: React.ReactNode;
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
   currentPage,
   onNavigate,
+  onOpenScanAI,
   children,
 }) => {
   const { profile, user, signOut, isConfigured } = useAuth();
@@ -207,6 +211,22 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <div className="px-3 py-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
               Menu Navigasi
             </div>
+
+            {onOpenScanAI && (
+              <div className="mb-2 px-1">
+                <button
+                  type="button"
+                  onClick={onOpenScanAI}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-xs transition active:scale-98 cursor-pointer"
+                  title="Pindai fisik surat dengan kamera atau unggah berkas (AI)"
+                >
+                  <Camera className="w-4 h-4 text-emerald-100" />
+                  <span>Scan & Pindai AI</span>
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                </button>
+              </div>
+            )}
+
             <nav className="space-y-1 mt-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -293,7 +313,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   </button>
                 </div>
 
-                <nav className="space-y-1 mt-4">
+                {onOpenScanAI && (
+                  <div className="mt-3 mb-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        onOpenScanAI();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white font-bold text-xs shadow-xs transition"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Scan & Pindai Surat AI</span>
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                    </button>
+                  </div>
+                )}
+
+                <nav className="space-y-1 mt-3">
                   {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = currentPage === item.id;
@@ -370,15 +407,29 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <span className="text-[10px] mt-0.5">Masuk</span>
           </button>
 
-          <button
-            onClick={() => handleNavClick('pencarian')}
-            className={`flex flex-col items-center justify-center py-1 transition min-h-[48px] ${
-              currentPage === 'pencarian' ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Search className={`w-5 h-5 ${currentPage === 'pencarian' ? 'text-emerald-600' : ''}`} />
-            <span className="text-[10px] mt-0.5">Cari</span>
-          </button>
+          {/* Tombol Utama Scan & Pindai AI (Tengah) */}
+          {onOpenScanAI ? (
+            <button
+              onClick={onOpenScanAI}
+              className="flex flex-col items-center justify-center -mt-3.5 group min-h-[48px]"
+              title="Pindai Surat via Kamera HP / Berkas (AI)"
+            >
+              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-lg border-2 border-white group-active:scale-95 transition-transform">
+                <Camera className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 mt-0.5">Pindai AI</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => handleNavClick('pencarian')}
+              className={`flex flex-col items-center justify-center py-1 transition min-h-[48px] ${
+                currentPage === 'pencarian' ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Search className={`w-5 h-5 ${currentPage === 'pencarian' ? 'text-emerald-600' : ''}`} />
+              <span className="text-[10px] mt-0.5">Cari</span>
+            </button>
+          )}
 
           <button
             onClick={() => handleNavClick('surat-keluar')}

@@ -61,9 +61,9 @@ Klasifikasi harus mengikuti master klasifikasi yang diberikan aplikasi.
 Kembalikan JSON sesuai schema.`;
 
 const CANDIDATE_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
   'gemini-3.8-flash',
+  'gemini-flash-latest',
+  'gemini-3.1-flash-lite',
 ];
 
 export function getResolvedGeminiApiKey(): string {

@@ -16,6 +16,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { InitialAdminSetupPage } from './pages/InitialAdminSetupPage';
 import { CreateLetterModal } from './components/CreateLetterModal';
+import { AIVerificationModal } from './components/AIVerificationModal';
 import { LetterType, Letter } from './types';
 import { Building2, Loader2 } from 'lucide-react';
 
@@ -26,8 +27,9 @@ function MainApp() {
   const [previousPage, setPreviousPage] = useState<NavigationPage>('dashboard');
   const [isSetupView, setIsSetupView] = useState<boolean>(false);
 
-  // Modal create letter
+  // Modal create letter & AI extraction modal
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
   const [createLetterType, setCreateLetterType] = useState<LetterType>('INCOMING');
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -179,6 +181,7 @@ function MainApp() {
             key={refreshKey}
             onNavigate={navigateTo}
             onOpenCreateLetter={handleOpenCreateLetter}
+            onOpenAIModal={() => setShowAIModal(true)}
           />
         );
       case 'surat-masuk':
@@ -257,7 +260,11 @@ function MainApp() {
   };
 
   return (
-    <AppLayout currentPage={currentPage} onNavigate={navigateTo}>
+    <AppLayout
+      currentPage={currentPage}
+      onNavigate={navigateTo}
+      onOpenScanAI={() => setShowAIModal(true)}
+    >
       {renderCurrentPage()}
 
       {/* Modal Catat Surat */}
@@ -272,6 +279,28 @@ function MainApp() {
           navigateToLetterDetail(exLetter.id);
         }}
       />
+
+      {/* Modal Ekstraksi & Verifikasi AI (Mode Baca AI) */}
+      {showAIModal && (
+        <AIVerificationModal
+          isOpen={showAIModal}
+          initialType="INCOMING"
+          onClose={() => setShowAIModal(false)}
+          onSuccess={(saved) => {
+            setShowAIModal(false);
+            setRefreshKey((prev) => prev + 1);
+            navigateToLetterDetail(saved.id);
+          }}
+          onSwitchToManual={(_file) => {
+            setShowAIModal(false);
+            handleOpenCreateLetter('INCOMING');
+          }}
+          onViewExisting={(ex) => {
+            setShowAIModal(false);
+            navigateToLetterDetail(ex.id);
+          }}
+        />
+      )}
     </AppLayout>
   );
 }

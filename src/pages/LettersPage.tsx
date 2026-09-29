@@ -40,6 +40,7 @@ import {
   SortAsc,
   LayoutGrid,
   List,
+  Camera,
 } from 'lucide-react';
 import { safeString, compareLetterNumbers } from '../utils/stringUtils';
 import { AIVerificationModal } from '../components/AIVerificationModal';
@@ -374,15 +375,16 @@ export const LettersPage: React.FC<LettersPageProps> = ({
             </button>
           </div>
 
-          {/* Baca dengan AI (Google Gemini) */}
+          {/* Scan & Pindai AI (Google Gemini) */}
           {canManageLetters && !showTrash && (
             <button
               onClick={() => setShowAIModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs transition cursor-pointer"
-              title="Ekstrak data surat otomatis dari dokumen fisik menggunakan Google Gemini"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xs transition cursor-pointer min-h-[36px]"
+              title="Pindai fisik surat dengan kamera atau unggah berkas PDF menggunakan Google Gemini"
             >
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>Baca AI</span>
+              <Camera className="w-4 h-4 text-emerald-200" />
+              <span>Scan / Pindai AI</span>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
             </button>
           )}
 
@@ -598,13 +600,21 @@ export const LettersPage: React.FC<LettersPageProps> = ({
               Pangkalan data saat ini tidak memuat data surat untuk kriteria ini. Sesuai prinsip keaslian data sistem, tidak ada data contoh atau surat rekayasa.
             </p>
             {canManageLetters && !showTrash && (
-              <div className="pt-2">
+              <div className="pt-2 flex items-center justify-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setShowAIModal(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Scan & Pindai Surat AI</span>
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                </button>
                 <button
                   onClick={() => onOpenCreate(pageType === 'OUTGOING' ? 'OUTGOING' : 'INCOMING')}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition"
                 >
                   <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Catat Surat Baru</span>
+                  <span>Input Manual</span>
                 </button>
               </div>
             )}
