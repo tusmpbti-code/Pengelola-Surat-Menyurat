@@ -17,7 +17,11 @@ import {
   Camera,
   Image,
 } from 'lucide-react';
-import { sanitizeDate, sanitizeNullableString } from '../utils/stringUtils';
+import {
+  sanitizeDate,
+  sanitizeNullableString,
+  extractSequenceFromLetterNumber,
+} from '../utils/stringUtils';
 
 interface CreateLetterModalProps {
   isOpen: boolean;
@@ -166,6 +170,26 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
     }
   };
 
+  const syncAgendaFromLetterNumber = () => {
+    const seq = extractSequenceFromLetterNumber(letterNumber);
+    if (seq) {
+      setAgendaNumber(seq);
+      success(`Nomor agenda diisi #${seq} sesuai nomor urut surat.`);
+    } else {
+      showToastError('Format nomor surat belum memuat nomor urut yang dapat diekstrak.');
+    }
+  };
+
+  const handleLetterNumberChange = (val: string) => {
+    setLetterNumber(val);
+    if (!agendaNumber.trim()) {
+      const seq = extractSequenceFromLetterNumber(val);
+      if (seq) {
+        setAgendaNumber(seq);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -194,10 +218,10 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-        <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-0 sm:p-4 backdrop-blur-xs">
+        <div className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-2xl rounded-none bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white shrink-0">
+          <div className="bg-slate-900 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between text-white shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-slate-800 rounded-lg text-emerald-400">
                 <FileText className="w-5 h-5" />
@@ -286,9 +310,22 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold uppercase tracking-wider mb-1 text-slate-600">
-                  Nomor Agenda
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold uppercase tracking-wider text-slate-600 text-[11px]">
+                    Nomor Agenda
+                  </label>
+                  {letterNumber.trim() && (
+                    <button
+                      type="button"
+                      onClick={syncAgendaFromLetterNumber}
+                      className="text-[10px] text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-1 transition"
+                      title="Sinkronkan nomor agenda dari nomor urut surat"
+                    >
+                      <Sparkles className="w-3 h-3 text-blue-500" />
+                      <span>⚡ Sinkron No. Surat</span>
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type="text"
@@ -302,7 +339,7 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
                   </span>
                 </div>
                 <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  Dihasilkan secara atomic per tahun kalender jika dikosongkan.
+                  Diurutkan otomatis sesuai nomor surat untuk tertib administrasi.
                 </span>
               </div>
 
@@ -340,7 +377,7 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
                       : 'Contoh: 421.3/085/SMP-BTI/2026'
                   }
                   value={letterNumber}
-                  onChange={(e) => setLetterNumber(e.target.value)}
+                  onChange={(e) => handleLetterNumberChange(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-blue-600 outline-none font-mono font-semibold"
                 />
               </div>
@@ -656,15 +693,15 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
             </div>
 
             {/* Status & Footer */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <div>
-                <label className="block font-semibold uppercase tracking-wider mb-1 text-slate-600">
-                  Status Surat Awal
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <label className="font-semibold uppercase tracking-wider text-slate-600 text-[10px] shrink-0">
+                  Status:
                 </label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as LetterStatus)}
-                  className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:border-blue-600 outline-none"
+                  className="w-full sm:w-auto rounded-xl border border-slate-300 px-3 py-2 text-xs text-slate-900 focus:border-blue-600 outline-none"
                 >
                   <option value="NEED_REVIEW">NEED_REVIEW (Perlu Verifikasi)</option>
                   <option value="DRAFT">DRAFT (Konsep)</option>
@@ -677,14 +714,14 @@ export const CreateLetterModal: React.FC<CreateLetterModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                  className="flex-1 sm:flex-none px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition min-h-[44px]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                  className="flex-1 sm:flex-none px-5 py-2.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center justify-center gap-1.5 min-h-[44px]"
                 >
                   {isSubmitting ? (
                     <span>Menyimpan ke Database...</span>

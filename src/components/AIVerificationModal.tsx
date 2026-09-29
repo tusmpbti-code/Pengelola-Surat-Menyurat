@@ -46,7 +46,11 @@ import {
   Hash,
   ArrowRight,
 } from 'lucide-react';
-import { sanitizeDate, sanitizeNullableString } from '../utils/stringUtils';
+import {
+  sanitizeDate,
+  sanitizeNullableString,
+  extractSequenceFromLetterNumber,
+} from '../utils/stringUtils';
 
 interface AIVerificationModalProps {
   isOpen: boolean;
@@ -69,7 +73,7 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
 }) => {
   const { user } = useAuth();
   const { canVerifyLetters } = usePermissions();
-  const { success, error: showToastError } = useToast();
+  const { showToast, success, error: showToastError } = useToast();
 
   // Categories master data
   const [categories, setCategories] = useState<LetterCategory[]>([]);
@@ -105,10 +109,11 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
   const [tanggalKegiatan, setTanggalKegiatan] = useState('');
   const [tempatKegiatan, setTempatKegiatan] = useState('');
 
-  // UI state: edit toggle & submitting
+  // UI state: edit toggle, submitting & mobile active tab
   const [isEditing, setIsEditing] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [mobileActiveTab, setMobileActiveTab] = useState<'DOCUMENT' | 'FORM'>('FORM');
 
   // Duplicate Check Dialog
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -183,7 +188,14 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
 
       // Populate form fields with sanitization
       if (d.jenis_surat) setLetterType(d.jenis_surat);
-      if (d.nomor_surat) setNomorSurat(sanitizeNullableString(d.nomor_surat) || '');
+      if (d.nomor_surat) {
+        const cleanNo = sanitizeNullableString(d.nomor_surat) || '';
+        setNomorSurat(cleanNo);
+        const seq = extractSequenceFromLetterNumber(cleanNo);
+        if (seq) {
+          setAgendaNumber(seq);
+        }
+      }
       const validTanggalSurat = sanitizeDate(d.tanggal_surat);
       if (validTanggalSurat) setTanggalSurat(validTanggalSurat);
 
@@ -385,8 +397,8 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 p-2 sm:p-4 backdrop-blur-xs overflow-hidden">
-        <div className="w-full max-w-6xl h-[94vh] rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 p-0 sm:p-4 backdrop-blur-xs overflow-hidden">
+        <div className="w-full h-full sm:h-[94vh] sm:max-w-6xl sm:rounded-2xl rounded-none bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
           {/* Header */}
           <div className="bg-slate-900 px-5 py-3.5 flex items-center justify-between text-white shrink-0 border-b border-slate-800">
             <div className="flex items-center gap-3">
@@ -546,10 +558,42 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
             </div>
           )}
 
+          {/* Mobile Tab Switcher (Hasil vs Dokumen) */}
+          <div className="lg:hidden flex items-center bg-slate-100 p-1 border-b border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setMobileActiveTab('FORM')}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition min-h-[40px] flex items-center justify-center gap-1.5 ${
+                mobileActiveTab === 'FORM'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Data Surat & Hasil AI</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileActiveTab('DOCUMENT')}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition min-h-[40px] flex items-center justify-center gap-1.5 ${
+                mobileActiveTab === 'DOCUMENT'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5 text-blue-600" />
+              <span>Pratinjau Fisik {file ? '✓' : ''}</span>
+            </button>
+          </div>
+
           {/* Split Screen Body: KIRI (Preview) vs KANAN (Hasil Ekstraksi) */}
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0 overflow-hidden divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
             {/* KIRI: PREVIEW DOKUMEN (5 Cols) */}
-            <div className="lg:col-span-5 flex flex-col bg-slate-100 min-h-[300px] lg:min-h-0 overflow-hidden">
+            <div
+              className={`lg:col-span-5 flex-col bg-slate-100 min-h-[300px] lg:min-h-0 overflow-hidden ${
+                mobileActiveTab === 'DOCUMENT' ? 'flex flex-1' : 'hidden lg:flex'
+              }`}
+            >
               <div className="bg-slate-200/70 px-4 py-2 flex items-center justify-between border-b border-slate-200 text-xs text-slate-700 font-semibold shrink-0 gap-2">
                 <div className="flex items-center gap-1.5 truncate">
                   <FileText className="w-4 h-4 text-slate-600 shrink-0" />
@@ -632,7 +676,11 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
             </div>
 
             {/* KANAN: HASIL EKSTRAKSI (7 Cols, Editable) */}
-            <div className="lg:col-span-7 flex flex-col bg-white overflow-hidden">
+            <div
+              className={`lg:col-span-7 flex-col bg-white overflow-hidden ${
+                mobileActiveTab === 'FORM' ? 'flex flex-1' : 'hidden lg:flex'
+              }`}
+            >
               <div className="bg-slate-50 px-5 py-2.5 flex items-center justify-between border-b border-slate-200 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
@@ -733,23 +781,64 @@ export const AIVerificationModal: React.FC<AIVerificationModalProps> = ({
                   </div>
                 </div>
 
-                {/* Nomor Surat & Sifat Surat */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  <div className="sm:col-span-2">
+                {/* Nomor Agenda, Nomor Surat & Sifat Surat */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
+                  <div className="sm:col-span-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-semibold text-slate-700">
+                        No. Agenda
+                      </label>
+                      {nomorSurat.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const seq = extractSequenceFromLetterNumber(nomorSurat);
+                            if (seq) {
+                              setAgendaNumber(seq);
+                              showToast(`No. Agenda diisi #${seq} sesuai no. urut surat.`, 'success');
+                            } else {
+                              showToast('Format nomor surat belum memuat nomor urut.', 'info');
+                            }
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-0.5"
+                          title="Sinkronkan nomor agenda dari nomor surat"
+                        >
+                          <Sparkles className="w-3 h-3 text-blue-500" />
+                          <span>⚡ Sinkron</span>
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={agendaNumber}
+                      onChange={(e) => setAgendaNumber(e.target.value)}
+                      placeholder="Otomatis (001...)"
+                      className="w-full h-9 px-3 rounded-xl border border-slate-300 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-6">
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Nomor Surat Resmi <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={nomorSurat}
-                      onChange={(e) => setNomorSurat(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNomorSurat(val);
+                        if (!agendaNumber.trim()) {
+                          const seq = extractSequenceFromLetterNumber(val);
+                          if (seq) setAgendaNumber(seq);
+                        }
+                      }}
                       placeholder="Contoh: 421.3/085/SMP-BTI/IX/2026"
-                      className="w-full h-9 px-3 rounded-xl border border-slate-300 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs"
+                      className="w-full h-9 px-3 rounded-xl border border-slate-300 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-semibold"
                       required
                     />
                   </div>
 
-                  <div>
+                  <div className="sm:col-span-3">
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                       Sifat Surat
                     </label>

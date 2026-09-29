@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EditLetterModal } from '../components/EditLetterModal';
+import { ReorderAgendaModal } from '../components/ReorderAgendaModal';
 import {
   Inbox,
   Send,
@@ -36,6 +37,9 @@ import {
   Sparkles,
   ArrowUp,
   ArrowDown,
+  SortAsc,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { safeString, compareLetterNumbers } from '../utils/stringUtils';
 import { AIVerificationModal } from '../components/AIVerificationModal';
@@ -80,9 +84,12 @@ export const LettersPage: React.FC<LettersPageProps> = ({
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(15);
 
-  // Modals & Dialogs
+  // Modals, Dialogs & Mobile Views
   const [selectedForEdit, setSelectedForEdit] = useState<Letter | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showReorderModal, setShowReorderModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'AUTO' | 'CARD' | 'TABLE'>('AUTO');
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     type: 'VERIFY' | 'ARCHIVE' | 'DELETE' | 'RESTORE';
     letter: Letter;
@@ -332,6 +339,41 @@ export const LettersPage: React.FC<LettersPageProps> = ({
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
+          {/* Tertib Administrasi: Urutkan No. Agenda Sesuai No. Surat */}
+          {canManageLetters && !showTrash && (
+            <button
+              onClick={() => setShowReorderModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 shadow-2xs transition cursor-pointer"
+              title="Urutkan dan tertibkan nomor agenda berurutan sesuai nomor surat"
+            >
+              <SortAsc className="w-4 h-4 text-blue-600" />
+              <span className="hidden sm:inline">Tertib No. Agenda</span>
+              <span className="sm:hidden">Urut Agenda</span>
+            </button>
+          )}
+
+          {/* View Mode Toggle: Kartu vs Tabel */}
+          <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setViewMode('CARD')}
+              className={`p-1.5 rounded-lg transition min-h-[32px] min-w-[32px] flex items-center justify-center ${
+                viewMode === 'CARD' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              title="Tampilan Kartu (Nyaman di HP)"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('TABLE')}
+              className={`p-1.5 rounded-lg transition min-h-[32px] min-w-[32px] flex items-center justify-center ${
+                viewMode === 'TABLE' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+              }`}
+              title="Tampilan Tabel Administrasi"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Baca dengan AI (Google Gemini) */}
           {canManageLetters && !showTrash && (
             <button
@@ -340,7 +382,7 @@ export const LettersPage: React.FC<LettersPageProps> = ({
               title="Ekstrak data surat otomatis dari dokumen fisik menggunakan Google Gemini"
             >
               <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>Baca dengan AI</span>
+              <span>Baca AI</span>
             </button>
           )}
 
@@ -568,7 +610,160 @@ export const LettersPage: React.FC<LettersPageProps> = ({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Mobile Card List View (Sangat responsif dan nyaman di HP) */}
+            <div
+              className={`p-3 space-y-3 bg-slate-50/60 ${
+                viewMode === 'AUTO' ? 'block md:hidden' : viewMode === 'CARD' ? 'block' : 'hidden'
+              }`}
+            >
+              {letters.map((letter, idx) => {
+                const rowNumber = (currentPageNum - 1) * pageSize + idx + 1;
+                const hasAttachment = letter.files && letter.files.length > 0;
+
+                return (
+                  <div
+                    key={`card-${letter.id}`}
+                    onClick={() => onNavigateToDetail(letter.id)}
+                    className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:border-slate-300 transition cursor-pointer space-y-3"
+                  >
+                    {/* Header bar card: Agenda badge, Jenis surat, Sifat, Status */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200">
+                          Agenda #{safeString(letter.agenda_number, '-')}
+                        </span>
+                        {pageType === 'ALL' && (
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                              letter.letter_type === 'INCOMING'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
+                          >
+                            {letter.letter_type === 'INCOMING' ? 'Masuk' : 'Keluar'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                            letter.letter_nature === 'Rahasia' ||
+                            letter.letter_nature === 'Sangat Rahasia'
+                              ? 'bg-rose-100 text-rose-800'
+                              : letter.letter_nature === 'Penting' ||
+                                letter.letter_nature === 'Segera'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {safeString(letter.letter_nature, 'Biasa')}
+                        </span>
+                        {getStatusBadge(letter.status)}
+                      </div>
+                    </div>
+
+                    {/* Nomor Surat & Lampiran */}
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-mono font-bold text-sm text-slate-900 leading-snug">
+                          {safeString(letter.letter_number, '(Tanpa Nomor)')}
+                        </h4>
+                        {hasAttachment && (
+                          <span
+                            title={`${letter.files?.length} berkas terlampir`}
+                            className="inline-flex items-center gap-0.5 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shrink-0"
+                          >
+                            <Paperclip className="w-3 h-3 text-blue-600" />
+                            <span>{letter.files?.length}</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-medium text-slate-800 line-clamp-2 mt-1">
+                        {safeString(letter.subject, '(Tanpa Perihal)')}
+                      </p>
+                    </div>
+
+                    {/* Tanggal & Instansi */}
+                    <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">
+                          {letter.letter_type === 'INCOMING' ? 'Tgl Surat / Diterima' : 'Tanggal Surat'}
+                        </span>
+                        <span className="font-medium text-slate-800">
+                          {safeString(letter.letter_date, '-')}
+                          {letter.received_date ? ` / ${letter.received_date}` : ''}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">
+                          {letter.letter_type === 'INCOMING' ? 'Asal Instansi' : 'Tujuan Instansi'}
+                        </span>
+                        <span className="font-medium text-slate-800 truncate block">
+                          {safeString(
+                            letter.letter_type === 'INCOMING' ? letter.sender : letter.recipient,
+                            '-'
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action buttons (Touch-friendly minimum 40px) */}
+                    <div
+                      className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => onNavigateToDetail(letter.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-3 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition min-h-[40px]"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Detail</span>
+                      </button>
+
+                      {canManageLetters && letter.status !== 'TRASH' && (
+                        <button
+                          onClick={() => setSelectedForEdit(letter)}
+                          className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-3 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition min-h-[40px]"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Ubah</span>
+                        </button>
+                      )}
+
+                      {canVerifyLetters &&
+                        ['DRAFT', 'NEED_REVIEW'].includes(letter.status) &&
+                        letter.status !== 'TRASH' && (
+                          <button
+                            onClick={() =>
+                              setConfirmDialog({
+                                type: 'VERIFY',
+                                letter,
+                                title: 'Verifikasi Surat',
+                                message: `Verifikasi surat nomor ${letter.letter_number}?`,
+                                confirmText: 'Verifikasi',
+                                variant: 'success',
+                              })
+                            }
+                            className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition min-h-[40px]"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Verifikasi</span>
+                          </button>
+                        )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div
+              className={`overflow-x-auto ${
+                viewMode === 'AUTO' ? 'hidden md:block' : viewMode === 'TABLE' ? 'block' : 'hidden'
+              }`}
+            >
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50/80 text-slate-600 uppercase text-[10px] font-bold border-b border-slate-200">
                 <tr>
@@ -893,7 +1088,8 @@ export const LettersPage: React.FC<LettersPageProps> = ({
               </tbody>
             </table>
           </div>
-        )}
+        </>
+      )}
 
         {/* Pagination Bar (Requirement A & B) */}
         {!loading && totalCount > 0 && (
@@ -1002,6 +1198,16 @@ export const LettersPage: React.FC<LettersPageProps> = ({
             setShowAIModal(false);
             onNavigateToDetail(ex.id);
           }}
+        />
+      )}
+
+      {/* Tertib Administrasi: Modal Penataan & Pengurutan Nomor Agenda */}
+      {showReorderModal && (
+        <ReorderAgendaModal
+          isOpen={showReorderModal}
+          onClose={() => setShowReorderModal(false)}
+          defaultLetterType={letterType || 'INCOMING'}
+          onSuccess={loadLetters}
         />
       )}
     </div>

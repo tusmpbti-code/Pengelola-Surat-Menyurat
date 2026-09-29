@@ -30,8 +30,10 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  SortAsc,
 } from 'lucide-react';
 import { safeString } from '../utils/stringUtils';
+import { ReorderAgendaModal } from './ReorderAgendaModal';
 
 interface JournalReportViewProps {
   letterType: 'INCOMING' | 'OUTGOING';
@@ -72,6 +74,7 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
   // Modals & UI states
   const [showColumnConfig, setShowColumnConfig] = useState<boolean>(false);
   const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
+  const [showReorderModal, setShowReorderModal] = useState<boolean>(false);
 
   // Column visibility state (Requirement P)
   const [columns, setColumns] = useState<JournalColumnConfig>({
@@ -361,6 +364,15 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
           >
             <Eye className="w-3.5 h-3.5 text-blue-600" />
             <span>Preview</span>
+          </button>
+
+          <button
+            onClick={() => setShowReorderModal(true)}
+            className="px-3 py-2 text-xs font-semibold rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 inline-flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+            title="Urutkan dan tertibkan nomor agenda sesuai urutan nomor surat"
+          >
+            <SortAsc className="w-3.5 h-3.5 text-blue-600" />
+            <span>Tertib No. Agenda</span>
           </button>
 
           <button
@@ -1137,6 +1149,16 @@ export const JournalReportView: React.FC<JournalReportViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tertib Administrasi Modal */}
+      {showReorderModal && (
+        <ReorderAgendaModal
+          isOpen={showReorderModal}
+          onClose={() => setShowReorderModal(false)}
+          defaultLetterType={letterType}
+          onSuccess={loadJournalData}
+        />
       )}
     </div>
   );

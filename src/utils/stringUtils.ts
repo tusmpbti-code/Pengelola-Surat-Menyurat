@@ -108,3 +108,52 @@ export function sanitizeDate(val: unknown): string | null {
 
   return null;
 }
+
+/**
+ * Mengekstrak nomor urut / indeks dari format nomor surat kedinasan Indonesia.
+ * Contoh:
+ * - "421.3/024/SMP-BTI/2026" => "024"
+ * - "015/DISDIK/IV/2026" => "015"
+ * - "B-104/KEMENAG/03/2026" => "104"
+ * - "No. 008/OSIS/2026" => "008"
+ * - "820/12/TU/2026" => "012"
+ */
+export function extractSequenceFromLetterNumber(
+  letterNumber: string | null | undefined
+): string | null {
+  if (!letterNumber) return null;
+  const cleaned = letterNumber.trim();
+  if (!cleaned) return null;
+
+  // Split berdasarkan separator umum surat dinas: '/', '-', '.', ' '
+  const segments = cleaned.split(/[\/\s]+/);
+
+  for (const seg of segments) {
+    const trimmed = seg.trim();
+    // Abaikan jika tahun 4 digit (misal 1990 s/d 2099)
+    if (/^(19|20)\d{2}$/.test(trimmed)) continue;
+    // Abaikan jika kode klasifikasi bertitik (misal 421.3, 005.1)
+    if (/^\d+\.\d+$/.test(trimmed)) continue;
+
+    // Cek apakah ada nomor urut misal "024", "005", "12", "B-104"
+    const match = trimmed.match(/(?:^|[A-Za-z]*-?)(\d{1,4})(?:$|[A-Za-z]*)/);
+    if (match && match[1]) {
+      const numStr = match[1];
+      const parsed = parseInt(numStr, 10);
+      if (parsed > 0 && parsed < 2000) {
+        return numStr.length >= 3 ? numStr : numStr.padStart(3, '0');
+      }
+    }
+  }
+
+  // Fallback regex umum nomor surat: No. 12 atau Nomor 005
+  const fallbackMatch = cleaned.match(/(?:No\.?|Nomor)?\s*(\d{1,4})/i);
+  if (fallbackMatch && fallbackMatch[1]) {
+    const parsed = parseInt(fallbackMatch[1], 10);
+    if (parsed > 0 && parsed < 2000) {
+      return fallbackMatch[1].length >= 3 ? fallbackMatch[1] : fallbackMatch[1].padStart(3, '0');
+    }
+  }
+
+  return null;
+}

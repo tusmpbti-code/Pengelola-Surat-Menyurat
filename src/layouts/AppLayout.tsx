@@ -159,19 +159,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             {/* Supabase connection indicator button */}
             <button
               onClick={() => setShowConfigModal(true)}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors min-h-[36px] ${
                 isConfigured
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                   : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
               }`}
               title="Status Supabase & Migrasi SQL"
             >
-              <Database className="w-3.5 h-3.5" />
-              <span>{isConfigured ? 'Supabase Terhubung' : 'Setup Supabase'}</span>
+              <Database className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{isConfigured ? 'Supabase Terhubung' : 'Setup Supabase'}</span>
+              <span className="sm:hidden text-[11px] font-semibold">{isConfigured ? 'Online' : 'Setup'}</span>
               {isConfigured ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
               ) : (
-                <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
               )}
             </button>
 
@@ -199,7 +200,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       </header>
 
       {/* Main App Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-6 flex gap-6">
         {/* Desktop Sidebar */}
         <aside className="hidden md:block w-64 shrink-0">
           <div className="bg-white rounded-2xl border border-slate-200 p-3 shadow-2xs sticky top-22">
@@ -345,6 +346,59 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         {/* Main Content View */}
         <main className="flex-1 min-w-0">{children}</main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar (Khusus HP / Layar Kecil) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1 shadow-lg">
+        <div className="grid grid-cols-5 items-center">
+          <button
+            onClick={() => handleNavClick('dashboard')}
+            className={`flex flex-col items-center justify-center py-1 transition min-h-[48px] ${
+              currentPage === 'dashboard' ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <LayoutDashboard className={`w-5 h-5 ${currentPage === 'dashboard' ? 'text-emerald-600' : ''}`} />
+            <span className="text-[10px] mt-0.5">Beranda</span>
+          </button>
+
+          <button
+            onClick={() => handleNavClick('surat-masuk')}
+            className={`flex flex-col items-center justify-center py-1 transition min-h-[48px] ${
+              currentPage === 'surat-masuk' ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Inbox className={`w-5 h-5 ${currentPage === 'surat-masuk' ? 'text-emerald-600' : ''}`} />
+            <span className="text-[10px] mt-0.5">Masuk</span>
+          </button>
+
+          <button
+            onClick={() => handleNavClick('pencarian')}
+            className={`flex flex-col items-center justify-center py-1 transition min-h-[48px] ${
+              currentPage === 'pencarian' ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Search className={`w-5 h-5 ${currentPage === 'pencarian' ? 'text-emerald-600' : ''}`} />
+            <span className="text-[10px] mt-0.5">Cari</span>
+          </button>
+
+          <button
+            onClick={() => handleNavClick('surat-keluar')}
+            className={`flex flex-col items-center justify-center py-1 transition min-h-[48px] ${
+              currentPage === 'surat-keluar' ? 'text-slate-900 font-bold' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Send className={`w-5 h-5 ${currentPage === 'surat-keluar' ? 'text-emerald-600' : ''}`} />
+            <span className="text-[10px] mt-0.5">Keluar</span>
+          </button>
+
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="flex flex-col items-center justify-center py-1 transition min-h-[48px] text-slate-500 hover:text-slate-800"
+          >
+            <Menu className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5">Menu</span>
+          </button>
+        </div>
+      </nav>
 
       {/* Supabase Config / Migration Modal */}
       <SupabaseConfigModal

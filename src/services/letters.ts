@@ -10,7 +10,12 @@ import {
   ComprehensiveReportStats,
   ReportArchive,
 } from '../types';
-import { compareLetterNumbers, sanitizeDate, sanitizeNullableString } from '../utils/stringUtils';
+import {
+  compareLetterNumbers,
+  extractSequenceFromLetterNumber,
+  sanitizeDate,
+  sanitizeNullableString,
+} from '../utils/stringUtils';
 
 /**
  * Mengambil statistik dashboard dari database nyata.
@@ -427,11 +432,16 @@ export async function createLetter(
       letterData.letter_type === 'INCOMING' ? sanitizeDate(letterData.received_date) : null;
     const sanitizedActivityDate = sanitizeDate(letterData.activity_date);
 
-    // 2. Tentukan nomor agenda secara atomic jika kosong
+    // 2. Tentukan nomor agenda: utamakan nomor urut dari nomor surat agar tertib administrasi
     let finalAgendaNumber = sanitizeNullableString(letterData.agenda_number);
     if (!finalAgendaNumber) {
-      const year = new Date(sanitizedLetterDate).getFullYear();
-      finalAgendaNumber = await getOrGenerateNextAgendaNumber(letterData.letter_type, year);
+      const seqFromLetter = extractSequenceFromLetterNumber(letterData.letter_number);
+      if (seqFromLetter) {
+        finalAgendaNumber = seqFromLetter;
+      } else {
+        const year = new Date(sanitizedLetterDate).getFullYear();
+        finalAgendaNumber = await getOrGenerateNextAgendaNumber(letterData.letter_type, year);
+      }
     }
 
     // 3. Susun payload bersih tanpa string literal "null" atau invalid date
@@ -1235,4 +1245,163 @@ export async function logReportAction(
     },
     userId
   );
+}
+
+export interface ReorderAgendaItem {
+  id: string;
+  letter_number: string;
+  subject: string;
+  letter_date: string;
+  current_agenda: string;
+  new_agenda: string;
+  changed: boolean;
+}
+
+export interface ReorderAgendaPreview {
+  items: ReorderAgendaItem[];
+  totalCount: number;
+  changedCount: number;
+}
+
+/**
+ * Menyiapkan pratinjau penataan nomor agenda agar terurut sesuai dengan urutan nomor surat.
+ */
+export async function previewReorderAgenda(
+  letterType: LetterType,
+  year?: number
+): Promise<ReorderAgendaPreview> {
+  if (!isSupabaseConfigured()) {
+    return { items: [], totalCount: 0, changedCount: 0 };
+  }
+
+  try {
+    let query = supabase
+      .from('letters')
+      .select('id, letter_number, subject, letter_date, agenda_number')
+      .eq('letter_type', letterType)
+      .is('deleted_at', null);
+
+    if (year) {
+      query = query
+        .gte('letter_date', `${year}-01-01`)
+        .lte('letter_date', `${year}-12-31`);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) {
+      console.warn('Gagal memuat surat untuk penataan agenda:', error?.message);
+      return { items: [], totalCount: 0, changedCount: 0 };
+    }
+
+    // Urutkan secara natural sesuai nomor surat
+    const sorted = [...data].sort((a, b) =>
+      compareLetterNumbers(a.letter_number, b.letter_number, 'asc')
+    );
+
+    let changedCount = 0;
+    const items: ReorderAgendaItem[] = sorted.map((l, index) => {
+      const newAgenda = String(index + 1).padStart(3, '0');
+      const currentAgenda = (l.agenda_number || '').trim();
+      const changed = currentAgenda !== newAgenda;
+      if (changed) changedCount++;
+
+      return {
+        id: l.id,
+        letter_number: l.letter_number || '(Tanpa Nomor)',
+        subject: l.subject || '(Tanpa Perihal)',
+        letter_date: l.letter_date || '-',
+        current_agenda: currentAgenda || '-',
+        new_agenda: newAgenda,
+        changed,
+      };
+    });
+
+    return {
+      items,
+      totalCount: items.length,
+      changedCount,
+    };
+  } catch (err) {
+    console.error('Error in previewReorderAgenda:', err);
+    return { items: [], totalCount: 0, changedCount: 0 };
+  }
+}
+
+/**
+ * Menerapkan penataan nomor agenda berurutan (001, 002, 003...)
+ * sesuai dengan urutan nomor surat yang ada demi ketertiban administrasi.
+ */
+export async function applyReorderAgenda(
+  letterType: LetterType,
+  year?: number,
+  userId?: string | null
+): Promise<{ success: boolean; updatedCount: number; message: string }> {
+  if (!isSupabaseConfigured()) {
+    return { success: false, updatedCount: 0, message: 'Koneksi Supabase belum terkonfigurasi.' };
+  }
+
+  try {
+    const preview = await previewReorderAgenda(letterType, year);
+    if (preview.items.length === 0) {
+      return { success: true, updatedCount: 0, message: 'Tidak ada surat yang perlu ditata ulang.' };
+    }
+
+    // Perbarui satu per satu data yang berubah
+    let updatedCount = 0;
+    for (const item of preview.items) {
+      if (item.changed) {
+        const { error: updErr } = await supabase
+          .from('letters')
+          .update({
+            agenda_number: item.new_agenda,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', item.id);
+
+        if (!updErr) {
+          updatedCount++;
+        }
+      }
+    }
+
+    // Perbarui atomic counter agar penomoran berikutnya sinkron
+    const effectiveYear = year || new Date().getFullYear();
+    const highestNumber = preview.items.length;
+    await supabase.from('agenda_counters').upsert({
+      year: effectiveYear,
+      letter_type: letterType,
+      last_number: highestNumber,
+      updated_at: new Date().toISOString(),
+    });
+
+    // Catat log audit administrasi
+    const typeLabel = letterType === 'INCOMING' ? 'Surat Masuk' : 'Surat Keluar';
+    await logLetterAction(
+      null,
+      'UPDATE_LETTER',
+      `Penataan Tertib Administrasi: Menata ulang ${updatedCount} nomor agenda ${typeLabel} tahun ${effectiveYear} sesuai urutan nomor surat.`,
+      null,
+      {
+        letter_type: letterType,
+        year: effectiveYear,
+        total_letters: preview.totalCount,
+        updated_count: updatedCount,
+        timestamp: new Date().toISOString(),
+      },
+      userId ?? null
+    );
+
+    return {
+      success: true,
+      updatedCount,
+      message: `Berhasil menata ulang ${updatedCount} nomor agenda sesuai dengan urutan nomor surat.`,
+    };
+  } catch (err: any) {
+    console.error('Error in applyReorderAgenda:', err);
+    return {
+      success: false,
+      updatedCount: 0,
+      message: err.message || 'Gagal menata ulang nomor agenda.',
+    };
+  }
 }
